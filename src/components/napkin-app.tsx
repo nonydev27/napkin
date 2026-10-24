@@ -1,11 +1,17 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useScroll,
+  useSpring,
+  useTransform,
+} from "framer-motion";
 import {
   ArrowDown,
   ArrowDownToLine,
-  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   Check,
@@ -14,7 +20,6 @@ import {
   Code2,
   Copy,
   ExternalLink,
-  Github,
   ImagePlus,
   LoaderCircle,
   LockKeyhole,
@@ -31,8 +36,8 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -40,7 +45,9 @@ import {
   type ChangeEvent,
   type DragEvent,
 } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
+import { makePreviewDocument } from "@/lib/sandbox";
+import { Brand, GitHubMark } from "@/components/brand";
 import { AuthModal } from "@/components/auth-modal";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -48,7 +55,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 const CodeEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
 type CanvasPreset = "mobile" | "tablet" | "desktop" | "custom";
-type WorkspaceAction = "download" | "share" | "assets";
+type WorkspaceAction = "download" | "share" | "assets" | "save";
 type CanvasSize = { width: number; height: number };
 
 const PRESETS: Record<Exclude<CanvasPreset, "custom">, CanvasSize> = {
@@ -56,33 +63,6 @@ const PRESETS: Record<Exclude<CanvasPreset, "custom">, CanvasSize> = {
   tablet: { width: 768, height: 1024 },
   desktop: { width: 1440, height: 960 },
 };
-
-const STARTER_HTML = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Your next big idea</title>
-    <style>
-      * { box-sizing: border-box; }
-      body { margin: 0; font-family: Inter, ui-sans-serif, system-ui; color: #171717; background: #f6f5f0; }
-      main { min-height: 100vh; display: grid; place-items: center; padding: 2rem; }
-      section { width: min(100%, 520px); padding: 2.5rem; border-radius: 28px; background: white; box-shadow: 0 24px 80px #231b1117; }
-      .tag { display: inline-flex; border-radius: 99px; padding: .5rem .75rem; background: #e8f77a; font-size: .75rem; font-weight: 700; }
-      h1 { margin: 1.5rem 0 .75rem; font-size: clamp(2.4rem, 7vw, 4rem); line-height: .96; letter-spacing: -.07em; }
-      p { color: #737373; line-height: 1.7; }
-      button { margin-top: 1.25rem; border: 0; border-radius: 12px; padding: .9rem 1.2rem; color: white; background: #171717; font: inherit; font-weight: 650; cursor: pointer; }
-    </style>
-  </head>
-  <body>
-    <main><section>
-      <span class="tag">A little sketch. A lot of potential.</span>
-      <h1>Your next big idea starts here.</h1>
-      <p>Upload a napkin sketch to turn a rough idea into an interface you can actually build.</p>
-      <button onclick="this.textContent='Let’s make it happen ✨'">Let’s go</button>
-    </section></main>
-  </body>
-</html>`;
 
 const TOUR_STEPS = [
   {
@@ -102,26 +82,35 @@ const TOUR_STEPS = [
   },
 ];
 
-function Brand({ compact = false }: { compact?: boolean }) {
-  return (
-    <Link aria-label="Napkin home" className="brand" href="/">
-      <span className="brand-mark">n</span>
-      {!compact && <span>napkin<span className="brand-ai">.ai</span></span>}
-    </Link>
-  );
-}
-
 function MagneticButton({
   children,
   className = "",
   ...props
 }: React.ComponentProps<typeof motion.button>) {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const springX = useSpring(x, { stiffness: 280, damping: 18 });
+  const springY = useSpring(y, { stiffness: 280, damping: 18 });
+  const { onMouseMove, onMouseLeave, style, ...buttonProps } = props;
+
   return (
     <motion.button
       className={className}
-      whileHover={{ y: -2, scale: 1.015 }}
+      onMouseLeave={(event) => {
+        x.set(0);
+        y.set(0);
+        onMouseLeave?.(event);
+      }}
+      onMouseMove={(event) => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        x.set((event.clientX - bounds.left - bounds.width / 2) * 0.12);
+        y.set((event.clientY - bounds.top - bounds.height / 2) * 0.12);
+        onMouseMove?.(event);
+      }}
+      style={{ ...style, x: springX, y: springY }}
+      whileHover={{ scale: 1.015 }}
       whileTap={{ scale: 0.98 }}
-      {...props}
+      {...buttonProps}
     >
       {children}
     </motion.button>
@@ -152,7 +141,8 @@ export function NapkinApp() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(true);
-  const [tourVisited, setTourVisited] = useState(false);
+  const oauthResume = useRef(false);
+  const resumeOAuthAction = useRef<(action: WorkspaceAction, currentCode: string) => void>(() => {});
 
   const generated = code.length > 0;
   const aspectRatio = useMemo(
@@ -164,8 +154,8 @@ export function NapkinApp() {
     if (!isSupabaseConfigured()) return;
 
     const supabase = createClient();
-    void supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    void supabase.auth.getUser().then(({ data: { user: currentUser } }) => setUser(currentUser));
+    const { data } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null);
     });
 
@@ -179,18 +169,31 @@ export function NapkinApp() {
 
   useEffect(() => {
     const alreadySeen = window.localStorage.getItem("napkin-tour-seen");
-    if (alreadySeen) {
-      setTourVisited(true);
-      return;
-    }
+    if (alreadySeen) return;
     const timer = window.setTimeout(() => setTourStep(-1), 1100);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const action = window.sessionStorage.getItem("napkin-auth-action") as WorkspaceAction | null;
+    const savedCode = window.sessionStorage.getItem("napkin-auth-code");
+    if (
+      action &&
+      ["download", "share", "assets", "save"].includes(action) &&
+      savedCode
+    ) {
+      oauthResume.current = true;
+      const timer = window.setTimeout(() => {
+        setPendingAction(action);
+        setCode(savedCode);
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
   }, []);
 
   function finishTour() {
     window.localStorage.setItem("napkin-tour-seen", "true");
     setTourStep(null);
-    setTourVisited(true);
   }
 
   function setImage(nextFile?: File) {
@@ -260,9 +263,12 @@ export function NapkinApp() {
     }
   }
 
-  async function saveProject(currentCode = code, share = false) {
-    if (!user) {
-      setPendingAction(share ? "share" : "download");
+  async function saveProject(currentCode = code, share = false, authenticatedUser = user) {
+    if (!authenticatedUser) {
+      const action = share ? "share" : "save";
+      window.sessionStorage.setItem("napkin-auth-action", action);
+      window.sessionStorage.setItem("napkin-auth-code", currentCode);
+      setPendingAction(action);
       setAuthOpen(true);
       return;
     }
@@ -317,7 +323,7 @@ export function NapkinApp() {
     link.href = url;
     link.download = `${file?.name.replace(/\.[^.]+$/, "") || "napkin-ui"}.html`;
     link.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     setMessage("Your HTML is ready to make its way into the world.");
   }
 
@@ -329,7 +335,7 @@ export function NapkinApp() {
       link.href = url;
       link.download = file.name;
       link.click();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage("Exported your HTML and original sketch.");
     }
   }
@@ -340,6 +346,8 @@ export function NapkinApp() {
       return;
     }
     if (!user) {
+      window.sessionStorage.setItem("napkin-auth-action", action);
+      window.sessionStorage.setItem("napkin-auth-code", code);
       setPendingAction(action);
       setAuthOpen(true);
       return;
@@ -358,16 +366,38 @@ export function NapkinApp() {
     setAuthOpen(false);
     const action = pendingAction;
     setPendingAction(null);
+    window.sessionStorage.removeItem("napkin-auth-action");
+    window.sessionStorage.removeItem("napkin-auth-code");
     if (action === "share") {
-      void saveProject(code, true);
+      void saveProject(code, true, nextUser);
     } else if (action === "download") {
       downloadCode();
     } else if (action === "assets") {
       exportAssets();
+    } else if (action === "save") {
+      void saveProject(code, false, nextUser);
     } else if (code) {
-      void saveProject(code);
+      void saveProject(code, false, nextUser);
     }
   }
+
+  useEffect(() => {
+    resumeOAuthAction.current = (action, currentCode) => {
+      if (action === "share") void saveProject(currentCode, true);
+      else if (action === "save") void saveProject(currentCode);
+      else if (action === "assets") exportAssets();
+      else downloadCode();
+    };
+  });
+
+  useEffect(() => {
+    if (!user || !oauthResume.current || !pendingAction || !code) return;
+    oauthResume.current = false;
+    window.sessionStorage.removeItem("napkin-auth-action");
+    window.sessionStorage.removeItem("napkin-auth-code");
+    resumeOAuthAction.current(pendingAction, code);
+    window.setTimeout(() => setPendingAction(null), 0);
+  }, [user, pendingAction, code]);
 
   async function signOut() {
     if (!isSupabaseConfigured()) return;
@@ -384,12 +414,7 @@ export function NapkinApp() {
     workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const previewSrcDoc = generated
-    ? code.replace(
-        /<head([^>]*)>/i,
-        '<head$1><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data: blob:; font-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'">',
-      )
-    : "";
+  const previewSrcDoc = generated ? makePreviewDocument(code) : "";
 
   return (
     <main className="site-shell">
@@ -399,7 +424,7 @@ export function NapkinApp() {
           <nav aria-label="Main navigation" className={mobileMenuOpen ? "main-nav nav-open" : "main-nav"}>
             <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How it works</a>
             <a href="#workspace" onClick={() => setMobileMenuOpen(false)}>The workspace</a>
-            <a href="https://github.com" rel="noreferrer" target="_blank">Open source <ExternalLink size={13} /></a>
+            <a href="https://github.com/nonydev27/napkin" rel="noreferrer" target="_blank">Open source <ExternalLink size={13} /></a>
           </nav>
           <div className="header-actions">
             {user ? (
@@ -488,7 +513,7 @@ export function NapkinApp() {
             </span>
             <span><strong>Developed by Felix &amp; Nonydev</strong><br />A little sketch goes a long way.</span>
             <span className="proof-divider" />
-            <a href="https://github.com" rel="noreferrer" target="_blank"><Github size={15} /> MIT licensed</a>
+            <a href="https://github.com/nonydev27/napkin" rel="noreferrer" target="_blank"><GitHubMark size={15} /> MIT licensed</a>
           </motion.div>
         </div>
 
@@ -581,7 +606,7 @@ export function NapkinApp() {
           </div>
           <div className="workspace-intro-right">
             <span className="workspace-status"><i /> YOUR CANVAS IS READY</span>
-            {!tourVisited && <button className="tour-link" onClick={() => setTourStep(-1)}><CircleHelp size={15} /> Take the quick tour</button>}
+            <button className="tour-link" onClick={() => setTourStep(-1)}><CircleHelp size={15} /> Take the quick tour</button>
           </div>
         </div>
 
@@ -621,7 +646,14 @@ export function NapkinApp() {
                 {imagePreview ? (
                   <div className="upload-preview">
                     {/* The browser creates this URL locally; the source image is never uploaded to storage. */}
-                    <img alt="Your uploaded napkin sketch" src={imagePreview} />
+                    <Image
+                      alt="Your uploaded napkin sketch"
+                      className="sketch-image"
+                      height={150}
+                      src={imagePreview}
+                      unoptimized
+                      width={260}
+                    />
                     <button className="replace-sketch" onClick={() => fileInputRef.current?.click()} type="button"><PenLine size={13} /> Change sketch</button>
                   </div>
                 ) : (
@@ -640,10 +672,10 @@ export function NapkinApp() {
               <p className="settings-caption">Pick a size. Change it whenever.</p>
               <div className="preset-grid">
                 {([
-                  ["mobile", <Smartphone size={16} />, "Phone"],
-                  ["tablet", <Tablet size={16} />, "Tablet"],
-                  ["desktop", <Monitor size={16} />, "Desktop"],
-                  ["custom", <MousePointer2 size={16} />, "Custom"],
+                  ["mobile", <Smartphone key="mobile-icon" size={16} />, "Phone"],
+                  ["tablet", <Tablet key="tablet-icon" size={16} />, "Tablet"],
+                  ["desktop", <Monitor key="desktop-icon" size={16} />, "Desktop"],
+                  ["custom", <MousePointer2 key="custom-icon" size={16} />, "Custom"],
                 ] as const).map(([value, icon, label]) => (
                   <button
                     aria-pressed={preset === value}
@@ -730,7 +762,7 @@ export function NapkinApp() {
                         options={{
                           automaticLayout: true,
                           fontSize: 13,
-                          fontFamily: "var(--font-geist-mono), monospace",
+                          fontFamily: "var(--font-app-mono), monospace",
                           minimap: { enabled: false },
                           padding: { top: 18 },
                           scrollBeyondLastLine: false,
@@ -789,7 +821,7 @@ export function NapkinApp() {
           <Brand />
           <p>Ideas deserve to get out of your notes app.</p>
           <div className="footer-links">
-            <a href="https://github.com" rel="noreferrer" target="_blank"><Github size={15} /> GitHub</a>
+            <a href="https://github.com/nonydev27/napkin" rel="noreferrer" target="_blank"><GitHubMark size={15} /> GitHub</a>
             <a href="#how-it-works">How it works</a>
             {user && <Link href="/projects">My Projects</Link>}
             {user && <button onClick={signOut}>Sign out</button>}
@@ -831,7 +863,10 @@ export function NapkinApp() {
                 <button
                   className="button button-lime"
                   onClick={() => {
-                    if (tourStep < 0) setTourStep(0);
+                    if (tourStep < 0) {
+                      scrollToWorkspace();
+                      setTourStep(0);
+                    }
                     else if (tourStep === TOUR_STEPS.length - 1) finishTour();
                     else setTourStep(tourStep + 1);
                   }}

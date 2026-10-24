@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;

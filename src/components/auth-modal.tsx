@@ -1,11 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, Github, LoaderCircle, Mail, X } from "lucide-react";
+import { ArrowUpRight, LoaderCircle, Mail, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { GitHubMark } from "@/components/brand";
 
 type AuthModalProps = {
   open: boolean;
@@ -133,7 +134,7 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
               onClick={signInWithGithub}
               type="button"
             >
-              <Github size={17} />
+              <GitHubMark size={17} />
               Continue with GitHub
               <ArrowUpRight className="button-trailing" size={16} />
             </button>

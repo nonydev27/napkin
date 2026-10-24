@@ -68,6 +68,7 @@ export async function POST(request: Request) {
   const { id, title, code, width, height } = payload;
   if (
     (id !== undefined && (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) ||
+    (payload.share !== undefined && typeof payload.share !== "boolean") ||
     typeof title !== "string" ||
     !title.trim() ||
     title.length > 80 ||
@@ -85,8 +86,10 @@ export async function POST(request: Request) {
     code,
     width,
     height,
-    is_public: payload.share === true,
   };
+  if (payload.share === true) {
+    Object.assign(values, { is_public: true });
+  }
   const query = id
     ? auth.supabase.from("projects").update(values).eq("id", id)
     : auth.supabase.from("projects").insert({ ...values, user_id: auth.user.id });

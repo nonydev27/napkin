@@ -2,6 +2,7 @@ import { ArrowUpRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Brand } from "@/components/brand";
+import { ThemeSwitch } from "@/components/theme-provider";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { makePreviewDocument } from "@/lib/sandbox";
@@ -23,7 +24,10 @@ export default function SharedProjectPage({
     <main className="share-page">
       <header className="share-topbar">
         <Brand />
-        <Link className="button button-lime" href="/">Make your own <ArrowUpRight size={14} /></Link>
+        <div className="projects-header-actions">
+          <ThemeSwitch />
+          <Link className="button button-lime" href="/">Make your own <ArrowUpRight size={14} /></Link>
+        </div>
       </header>
       <Suspense fallback={<div className="not-found-panel">Opening this napkin…</div>}>
         <SharedProjectView params={params} />

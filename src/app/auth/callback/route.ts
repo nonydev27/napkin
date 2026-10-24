@@ -6,10 +6,13 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const destination = searchParams.get("next");
-  const safeDestination =
-    destination?.startsWith("/") && !destination.startsWith("//")
-      ? destination
-      : "/";
+  let safeDestination = "/";
+  if (destination) {
+    const parsedDestination = new URL(destination, origin);
+    if (parsedDestination.origin === origin) {
+      safeDestination = `${parsedDestination.pathname}${parsedDestination.search}${parsedDestination.hash}`;
+    }
+  }
 
   if (!isSupabaseConfigured() || !code) {
     return NextResponse.redirect(new URL("/?auth=error", origin));

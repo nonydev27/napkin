@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, LoaderCircle, Mail, X } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -21,6 +21,18 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const emailInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = window.requestAnimationFrame(() => emailInput.current?.focus());
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,7 +106,28 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
           }}
         >
           <motion.section
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                onClose();
+                return;
+              }
+              if (event.key !== "Tab") return;
+              const focusable = event.currentTarget.querySelectorAll<HTMLElement>(
+                'button:not(:disabled), input:not(:disabled), [href], textarea:not(:disabled)',
+              );
+              const first = focusable.item(0);
+              const last = focusable.item(focusable.length - 1);
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last?.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first?.focus();
+              }
+            }}
             aria-labelledby="auth-title"
+            aria-describedby="auth-description"
             aria-modal="true"
             className="auth-card"
             initial={{ opacity: 0, y: 18, scale: 0.97 }}
@@ -116,7 +149,7 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
             <h2 id="auth-title">
               {mode === "signup" ? "Make it yours." : "Welcome back."}
             </h2>
-            <p className="auth-copy">
+            <p className="auth-copy" id="auth-description">
               Sign in to save projects, share a live link, and take your code with you.
             </p>
 
@@ -148,6 +181,7 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
                 <input
                   autoComplete="email"
                   id="auth-email"
+                  ref={emailInput}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="you@example.com"
                   required

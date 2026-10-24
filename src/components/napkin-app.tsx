@@ -48,6 +48,7 @@ import {
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { makePreviewDocument } from "@/lib/sandbox";
 import { Brand, GitHubMark } from "@/components/brand";
+import { ThemeSwitch } from "@/components/theme-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -175,6 +176,17 @@ export function NapkinApp() {
   }, []);
 
   useEffect(() => {
+    if (tourStep === null || tourStep < 0) return;
+    const target = document.querySelector<HTMLElement>(
+      `[data-tour="${TOUR_STEPS[tourStep].target}"]`,
+    );
+    if (!target) return;
+    target.classList.add("tour-highlight");
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    return () => target.classList.remove("tour-highlight");
+  }, [tourStep]);
+
+  useEffect(() => {
     const action = window.sessionStorage.getItem("napkin-auth-action") as WorkspaceAction | null;
     const savedCode = window.sessionStorage.getItem("napkin-auth-code");
     if (
@@ -253,7 +265,7 @@ export function NapkinApp() {
       setCode(result.code);
       setProjectId(null);
       setMessage("Your sketch just became a starting point. Make it yours.");
-      if (user) void saveProject(result.code);
+      if (user) void saveProject(result.code, false, user, null);
       if (window.innerWidth < 760) setShowPreview(true);
       workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (cause) {
@@ -263,7 +275,12 @@ export function NapkinApp() {
     }
   }
 
-  async function saveProject(currentCode = code, share = false, authenticatedUser = user) {
+  async function saveProject(
+    currentCode = code,
+    share = false,
+    authenticatedUser = user,
+    currentProjectId = projectId,
+  ) {
     if (!authenticatedUser) {
       const action = share ? "share" : "save";
       window.sessionStorage.setItem("napkin-auth-action", action);
@@ -281,7 +298,7 @@ export function NapkinApp() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: projectId,
+          id: currentProjectId,
           title: file?.name.replace(/\.[^.]+$/, "") || "Untitled napkin",
           code: currentCode,
           width: canvasSize.width,
@@ -372,8 +389,10 @@ export function NapkinApp() {
       void saveProject(code, true, nextUser);
     } else if (action === "download") {
       downloadCode();
+      void saveProject(code, false, nextUser);
     } else if (action === "assets") {
       exportAssets();
+      void saveProject(code, false, nextUser);
     } else if (action === "save") {
       void saveProject(code, false, nextUser);
     } else if (code) {
@@ -427,6 +446,7 @@ export function NapkinApp() {
             <a href="https://github.com/nonydev27/napkin" rel="noreferrer" target="_blank">Open source <ExternalLink size={13} /></a>
           </nav>
           <div className="header-actions">
+            <ThemeSwitch />
             {user ? (
               <>
                 <Link className="header-projects" href="/projects">My Projects</Link>
@@ -839,22 +859,28 @@ export function NapkinApp() {
             initial={{ opacity: 0 }}
           >
             <motion.div
+              aria-labelledby="tour-heading"
+              aria-modal="true"
               animate={{ opacity: 1, y: 0, scale: 1 }}
               className="tour-card"
               initial={{ opacity: 0, y: 14, scale: 0.98 }}
               key={tourStep}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") finishTour();
+              }}
+              role="dialog"
             >
               <button aria-label="Close tour" className="icon-button tour-close" onClick={finishTour}><X size={16} /></button>
               <span className="tour-label"><Sparkles size={13} /> THE 10-SECOND TOUR</span>
               {tourStep < 0 ? (
                 <>
-                  <h3>First time here?</h3>
+                  <h3 id="tour-heading">First time here?</h3>
                   <p>Let’s make something out of that sketch you’ve been carrying around.</p>
                 </>
               ) : (
                 <>
                   <span className="tour-count">0{tourStep + 1} / 03</span>
-                  <h3>{TOUR_STEPS[tourStep].title}</h3>
+                  <h3 id="tour-heading">{TOUR_STEPS[tourStep].title}</h3>
                   <p>{TOUR_STEPS[tourStep].description}</p>
                 </>
               )}

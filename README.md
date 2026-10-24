@@ -21,7 +21,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-`GEMINI_API_KEY` is used only by the server-side generation route. `GEMINI_MODEL` is optional. The Supabase anon/publishable key is intended for browser use; never put a service-role key in a `NEXT_PUBLIC_` variable.
+`GEMINI_API_KEY` is used only by the server-side generation route. `GEMINI_MODEL` is optional and defaults to `gemini-2.5-flash`, a hosted, image-capable Gemini API model. Google documents Gemma 4 as open-weight models deployed on local devices or your own servers; it is not the same as selecting a hosted Gemini API model. To run Gemma 4, host a compatible inference endpoint and add that provider as a backend instead of setting `GEMINI_MODEL` to a model the Gemini API does not serve. The Supabase anon/publishable key is intended for browser use; never put a service-role key in a `NEXT_PUBLIC_` variable.
 
 ## Supabase setup (free tier)
 
@@ -47,6 +47,7 @@ src/
     api/generate/route.ts       Gemini image-to-HTML endpoint
     api/projects/route.ts       Authenticated project history and saves
     auth/callback/route.ts      Supabase OAuth code exchange
+    projects/[id]/page.tsx      Private saved project preview
     projects/page.tsx           Private project history
     share/[id]/page.tsx         Explicitly shared, sandboxed preview
     globals.css                 Dark, responsive design system
@@ -56,6 +57,7 @@ src/
     auth-modal.tsx              Email/password and GitHub sign-in
     brand.tsx                   Shared brand mark
     napkin-app.tsx              Landing, responsive workspace, tour
+    theme-provider.tsx          Persisted, accessible light/dark themes
   lib/
     sandbox.ts                  CSP-injected preview document helper
     supabase/                   SSR browser/server clients and config
@@ -72,7 +74,7 @@ npx tsc --noEmit
 npm run build
 ```
 
-Generated projects are saved to the signed-in user's project history. Sharing creates a public read-only URL; toggling it off is not currently exposed in the UI, so treat shared links as public. Code and asset exports require sign-in. The one-time onboarding tour can be replayed from **Take the quick tour** in the workspace.
+Generated projects are saved to the signed-in user's project history. Sharing creates a public read-only URL; toggling it off is not currently exposed in the UI, so treat shared links as public. Code and asset exports require sign-in. The one-time onboarding tour can be replayed from **Take the quick tour** in the workspace. The theme switch in the header is keyboard accessible and persists across the landing page, workspace, projects, and shared previews.
 
 ## License
 

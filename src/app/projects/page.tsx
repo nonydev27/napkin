@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowUpRight, LockKeyhole, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Brand } from "@/components/brand";
+import { ThemeSwitch } from "@/components/theme-provider";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -19,7 +20,10 @@ export default function ProjectsPage() {
     <main className="projects-page">
       <header className="projects-header">
         <Brand />
-        <Link className="header-projects" href="/">Back to the canvas <ArrowLeft size={14} /></Link>
+        <div className="projects-header-actions">
+          <ThemeSwitch />
+          <Link className="header-projects" href="/">Back to the canvas <ArrowLeft size={14} /></Link>
+        </div>
       </header>
       <Suspense fallback={<div className="projects-main projects-lede">Loading your projects…</div>}>
         <ProjectHistory />
@@ -89,11 +93,7 @@ async function ProjectHistory() {
               </div>
               <div className="project-card-footer">
                 <span>{new Date(project.created_at).toLocaleDateString()}</span>
-                {project.is_public ? (
-                  <Link href={`/share/${project.id}`}>Open share link <ArrowUpRight size={12} /></Link>
-                ) : (
-                  <span>Private</span>
-                )}
+                <Link href={`/projects/${project.id}`}>View project <ArrowUpRight size={12} /></Link>
               </div>
             </article>
           ))}

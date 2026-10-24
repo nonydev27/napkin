@@ -155,7 +155,7 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
 
             {!isSupabaseConfigured() && (
               <p className="auth-message auth-error">
-                Accounts are not connected yet. Add your Supabase project URL and anon key to{" "}
+                Accounts are not connected yet. Add your Supabase project URL and publishable key to{" "}
                 <code>.env.local</code>, then restart the app.{" "}
                 <a href="https://supabase.com/dashboard" rel="noreferrer" target="_blank">
                   Find them in Supabase settings

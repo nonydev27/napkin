@@ -18,7 +18,7 @@ Open [http://localhost:3000](http://localhost:3000). Install and start Ollama as
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 GEMMA_MODEL=gemma4:e4b
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 NEXT_PUBLIC_SITE_URL=
 ```
 
@@ -34,7 +34,7 @@ For remote deployments, localhost refers to the deployed machine itself. You wou
 
 ## Supabase setup (free tier)
 
-1. Create a Supabase project on the Free plan and copy its Project URL and anon/publishable key into `.env.local`.
+1. Create a Supabase project on the Free plan and copy its Project URL and publishable key into `.env.local`.
 2. In **SQL Editor**, run [`supabase/migrations/20261024000000_projects.sql`](supabase/migrations/20261024000000_projects.sql). It creates the projects table and owner-scoped Row Level Security policies; public reads are allowed only for projects the owner explicitly shares.
 3. In **Authentication → URL Configuration**, set the Site URL to `http://localhost:3000` and add `http://localhost:3000/auth/callback` to the redirect URL allow list.
 4. For GitHub login, enable the GitHub provider in **Authentication → Providers** and configure its OAuth app with the callback URL shown by Supabase. Add your production callback URL when deploying.
@@ -42,11 +42,11 @@ For remote deployments, localhost refers to the deployed machine itself. You wou
 
 The app uses Supabase SSR browser/server clients, cookie-based sessions, a Next.js 16 `proxy.ts` session refresh, and a server-side OAuth callback. Database reads and writes use the signed-in user's session and RLS; no service-role key or Supabase Storage is used. Generated sketches are sent to the generation endpoint but are not uploaded to Supabase Storage.
 
-If the account buttons are disabled, Supabase credentials are missing. In Supabase Dashboard, open **Project Settings → API** (or **API Keys**) and copy the **Project URL** and **anon/public** key—not the `service_role` or secret key—to `.env.local`:
+If the account buttons are disabled, Supabase credentials are missing. In Supabase Dashboard, open **Project Settings → API** (or **API Keys**) and copy the **Project URL** and **publishable** key—not the `service_role` or secret key—to `.env.local`:
 
 ```dotenv
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 Restart `npm run dev` after saving `.env.local`. To test email signup, use an address you can access and check its inbox if email confirmation is enabled in Supabase Auth. GitHub signup additionally needs the GitHub provider configured in the Supabase steps above.

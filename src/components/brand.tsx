@@ -7,19 +7,17 @@ import Link from "next/link";
  */
 export function NapkinMark({ size = 31 }: { size?: number }) {
   return (
-    <svg
-      aria-hidden="true"
-      height={size}
-      viewBox="0 0 32 32"
-      width={size}
-    >
+    <svg aria-hidden="true" height={size} viewBox="0 0 32 32" width={size}>
       {/* Napkin tile with folded corner (bottom-left) */}
       <path
         d="M4 1h24a3 3 0 0 1 3 3v24a3 3 0 0 1-3 3H10L1 22V4a3 3 0 0 1 3-3Z"
         fill="var(--lime, #dbfa69)"
       />
       {/* Fold shadow */}
-      <path d="M10 31 1 22h6a3 3 0 0 1 3 3v6Z" fill="var(--lime-dark, #c2e64a)" />
+      <path
+        d="M10 31 1 22h6a3 3 0 0 1 3 3v6Z"
+        fill="var(--lime-dark, #c2e64a)"
+      />
       {/* Hand-drawn stroke: a wavy sketch line on the top half */}
       <path
         d="M9 10.5c2.4-2.6 4.6 2.2 7-.4 2.3-2.5 4.4 1.9 6.8-.5"
@@ -29,8 +27,22 @@ export function NapkinMark({ size = 31 }: { size?: number }) {
         strokeWidth="2.4"
       />
       {/* "Real" UI lines: crisp horizontal bars below, dot on the right */}
-      <rect fill="var(--ink, #11120e)" height="2.4" rx="1.2" width="9" x="9" y="16" />
-      <rect fill="var(--ink, #11120e)" height="2.4" rx="1.2" width="6" x="9" y="21" />
+      <rect
+        fill="var(--ink, #11120e)"
+        height="2.4"
+        rx="1.2"
+        width="9"
+        x="9"
+        y="16"
+      />
+      <rect
+        fill="var(--ink, #11120e)"
+        height="2.4"
+        rx="1.2"
+        width="6"
+        x="9"
+        y="21"
+      />
       <circle cx="21.5" cy="17.2" fill="var(--ink, #11120e)" r="1.5" />
       <circle cx="20" cy="22.2" fill="var(--ink, #11120e)" r="1.2" />
     </svg>
@@ -43,7 +55,11 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       <span className="brand-mark">
         <NapkinMark />
       </span>
-      {!compact && <span>napkin<span className="brand-ai">.ai</span></span>}
+      {!compact && (
+        <span>
+          napkin<span className="brand-ai">.ai</span>
+        </span>
+      )}
     </Link>
   );
 }

@@ -1,6 +1,6 @@
-# Napkin AI
+# Napkin
 
-**From napkin to real.** Napkin AI turns a hand-drawn UI sketch into a responsive HTML starting point you can edit, preview, save, and share. Built by Felix & Nonydev; open source under the MIT License.
+**From napkin to real.** Napkin turns a hand-drawn UI sketch into a responsive HTML starting point you can edit, preview, save, and share. Built by Felix & Nonydev; open source under the MIT License.
 
 ## Run it locally
 
@@ -12,16 +12,25 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Add the API keys below to `.env.local`; without them, the landing page and workspace remain available, while generation and cloud accounts explain which service needs configuration.
+Open [http://localhost:3000](http://localhost:3000). Install and start Ollama as described below for free, local AI generation. Supabase is optional and only needed for account-protected export, sharing, and saved project history.
 
 ```dotenv
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+GEMMA_MODEL=gemma4:e4b
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SITE_URL=
 ```
 
-`GEMINI_API_KEY` is used only by the server-side generation route. `GEMINI_MODEL` is optional and defaults to `gemini-2.5-flash`, a hosted, image-capable Gemini API model. Google documents Gemma 4 as open-weight models deployed on local devices or your own servers; it is not the same as selecting a hosted Gemini API model. To run Gemma 4, host a compatible inference endpoint and add that provider as a backend instead of setting `GEMINI_MODEL` to a model the Gemini API does not serve. The Supabase anon/publishable key is intended for browser use; never put a service-role key in a `NEXT_PUBLIC_` variable.
+### Free local AI with Gemma 4
+
+1. Install [Ollama](https://ollama.com/download).
+2. In a terminal, download and start Gemma 4 E4B: `ollama run gemma4:e4b`. The first run downloads the model; keep Ollama running while you use Napkin.
+3. In a second terminal, start Napkin with `npm run dev`.
+
+The app sends sketches to the local Ollama server at `http://127.0.0.1:11434` by default. No Gemini API key, hosted inference service, or per-request AI bill is required. Model inference uses your computer's memory, processor/GPU, disk space, and electricity. Gemma 4 E4B is the default; choose another Ollama Gemma 4 tag via `GEMMA_MODEL` if your hardware needs a smaller model. Set `OLLAMA_BASE_URL` only when Ollama runs at a different reachable address. Do not expose Ollama's unauthenticated API to the public internet.
+
+For remote deployments, localhost refers to the deployed machine itself. You would need to run Ollama on that server (and provide enough compute); a hosted inference endpoint may have its own costs. Supabase anon/publishable keys are intended for browser use; never put a service-role key in a `NEXT_PUBLIC_` variable. `NEXT_PUBLIC_SITE_URL` is the deployed origin (for example `https://napkin.example.com`) and powers canonical URLs, the sitemap, robots.txt, and Open Graph tags; it is optional in development.
 
 ## Supabase setup (free tier)
 
@@ -33,9 +42,18 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 The app uses Supabase SSR browser/server clients, cookie-based sessions, a Next.js 16 `proxy.ts` session refresh, and a server-side OAuth callback. Database reads and writes use the signed-in user's session and RLS; no service-role key or Supabase Storage is used. Generated sketches are sent to the generation endpoint but are not uploaded to Supabase Storage.
 
-## Gemini setup
+If the account buttons are disabled, Supabase credentials are missing. In Supabase Dashboard, open **Project Settings → API** (or **API Keys**) and copy the **Project URL** and **anon/public** key—not the `service_role` or secret key—to `.env.local`:
 
-Create an API key in [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The server validates image type, size, canvas dimensions, and prompt length before sending a sketch to Gemini. The default model is configurable with `GEMINI_MODEL`.
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
+```
+
+Restart `npm run dev` after saving `.env.local`. To test email signup, use an address you can access and check its inbox if email confirmation is enabled in Supabase Auth. GitHub signup additionally needs the GitHub provider configured in the Supabase steps above.
+
+## Generation
+
+The server validates image type, size, canvas dimensions, and prompt length before sending a sketch to your local Ollama/Gemma server. Generated sketches are not stored by Napkin. The default model is configurable with `GEMMA_MODEL`.
 
 Generation returns a standalone HTML document. The live preview runs in a sandboxed iframe with an opaque origin and a restrictive Content Security Policy; the editor never evaluates generated code in the main app.
 
@@ -44,7 +62,7 @@ Generation returns a standalone HTML document. The live preview runs in a sandbo
 ```text
 src/
   app/
-    api/generate/route.ts       Gemini image-to-HTML endpoint
+    api/generate/route.ts       Local Ollama/Gemma image-to-HTML endpoint
     api/projects/route.ts       Authenticated project history and saves
     auth/callback/route.ts      Supabase OAuth code exchange
     projects/[id]/page.tsx      Private saved project preview

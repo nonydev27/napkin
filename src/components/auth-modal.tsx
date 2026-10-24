@@ -155,7 +155,12 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
 
             {!isSupabaseConfigured() && (
               <p className="auth-message auth-error">
-                Add your Supabase URL and anon key to enable accounts.
+                Accounts are not connected yet. Add your Supabase project URL and anon key to{" "}
+                <code>.env.local</code>, then restart the app.{" "}
+                <a href="https://supabase.com/dashboard" rel="noreferrer" target="_blank">
+                  Find them in Supabase settings
+                </a>
+                .
               </p>
             )}
             {error && <p className="auth-message auth-error">{error}</p>}

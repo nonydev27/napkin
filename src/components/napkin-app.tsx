@@ -31,9 +31,11 @@ import {
   Smartphone,
   Sparkles,
   Tablet,
+  Undo2,
   Upload,
   WandSparkles,
   X,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -44,6 +46,7 @@ import {
   useState,
   type ChangeEvent,
   type DragEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { makePreviewDocument } from "@/lib/sandbox";
@@ -121,6 +124,9 @@ function MagneticButton({
 export function NapkinApp() {
   const workspaceRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
+  const undoStack = useRef<ImageData[]>([]);
+  const drawingRevision = useRef(0);
   const { scrollY } = useScroll();
   const glowY = useTransform(scrollY, [0, 850], [0, 220]);
   const glowRotate = useTransform(scrollY, [0, 900], [-8, 16]);
@@ -137,6 +143,9 @@ export function NapkinApp() {
   const [code, setCode] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [sketchMode, setSketchMode] = useState<"upload" | "draw">("upload");
+  const [hasDrawing, setHasDrawing] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -167,6 +176,14 @@ export function NapkinApp() {
     if (!imagePreview) return;
     return () => URL.revokeObjectURL(imagePreview);
   }, [imagePreview]);
+
+  useEffect(() => {
+    const canvas = drawingCanvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
 
   useEffect(() => {
     const alreadySeen = window.localStorage.getItem("napkin-tour-seen");
@@ -227,6 +244,7 @@ export function NapkinApp() {
   }
 
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
+    setSketchMode("upload");
     setImage(event.target.files?.[0]);
     event.target.value = "";
   }
@@ -237,14 +255,114 @@ export function NapkinApp() {
     setImage(event.dataTransfer.files[0]);
   }
 
+  function drawingPoint(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const canvas = event.currentTarget;
+    const bounds = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - bounds.left) / bounds.width) * canvas.width,
+      y: ((event.clientY - bounds.top) / bounds.height) * canvas.height,
+    };
+  }
+
+  function startDrawing(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const canvas = event.currentTarget;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    undoStack.current.push(context.getImageData(0, 0, canvas.width, canvas.height));
+    if (undoStack.current.length > 30) undoStack.current.shift();
+    const point = drawingPoint(event);
+
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    context.lineTo(point.x + 0.1, point.y + 0.1);
+    context.strokeStyle = "#202119";
+    context.lineWidth = 4;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.stroke();
+    canvas.setPointerCapture(event.pointerId);
+    setIsDrawing(true);
+    setHasDrawing(true);
+    setError("");
+  }
+
+  function continueDrawing(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (!isDrawing) return;
+    const context = event.currentTarget.getContext("2d");
+    if (!context) return;
+    const point = drawingPoint(event);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  }
+
+  function finishDrawing(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    const canvas = event.currentTarget;
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+    const revision = ++drawingRevision.current;
+    canvas.toBlob((blob) => {
+      if (revision !== drawingRevision.current) return;
+      if (!blob || blob.size > 8 * 1024 * 1024) {
+        setError("Could not prepare that sketch. Try drawing a smaller, simpler version.");
+        return;
+      }
+      setImage(new File([blob], "my-napkin-sketch.png", { type: "image/png" }));
+    }, "image/png");
+  }
+
+  function undoDrawing() {
+    const canvas = drawingCanvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context || undoStack.current.length === 0) return;
+    const previous = undoStack.current.pop();
+    if (!previous) return;
+    context.putImageData(previous, 0, 0);
+    const stillHasDrawing = undoStack.current.length > 0;
+    setHasDrawing(stillHasDrawing);
+    if (!stillHasDrawing) {
+      drawingRevision.current += 1;
+      setFile(null);
+      setImagePreview("");
+      return;
+    }
+    const revision = ++drawingRevision.current;
+    canvas.toBlob((blob) => {
+      if (blob && revision === drawingRevision.current) {
+        setImage(new File([blob], "my-napkin-sketch.png", { type: "image/png" }));
+      }
+    }, "image/png");
+  }
+
+  function clearDrawing() {
+    const canvas = drawingCanvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    drawingRevision.current += 1;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    undoStack.current = [];
+    setHasDrawing(false);
+    setFile(null);
+    setImagePreview("");
+    setError("");
+    setMessage("");
+  }
+
   function selectPreset(nextPreset: CanvasPreset) {
     setPreset(nextPreset);
     if (nextPreset !== "custom") setCanvasSize(PRESETS[nextPreset]);
   }
 
   async function generate() {
-    if (!file) {
-      setError("Add a sketch first — even a quick doodle will do.");
+    if (!file && !prompt.trim()) {
+      setError("Start by uploading a sketch, drawing one, or describing your idea below.");
+      if (sketchMode === "draw") drawingCanvasRef.current?.focus();
+      else fileInputRef.current?.focus();
       return;
     }
     setError("");
@@ -253,7 +371,7 @@ export function NapkinApp() {
 
     try {
       const formData = new FormData();
-      formData.set("image", file);
+      if (file) formData.set("image", file);
       formData.set("prompt", prompt);
       formData.set("width", String(canvasSize.width));
       formData.set("height", String(canvasSize.height));
@@ -264,7 +382,7 @@ export function NapkinApp() {
       }
       setCode(result.code);
       setProjectId(null);
-      setMessage("Your sketch just became a starting point. Make it yours.");
+      setMessage("Your idea just became a starting point. Make it yours.");
       if (user) void saveProject(result.code, false, user, null);
       if (window.innerWidth < 760) setShowPreview(true);
       workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -565,7 +683,7 @@ export function NapkinApp() {
             className="floating-chip ai-chip"
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           >
-            <span className="chip-icon"><Sparkles size={15} /></span><span>Gemini made<br /><strong>the first draft</strong></span>
+            <span className="chip-icon"><Sparkles size={15} /></span><span>Gemma made<br /><strong>the first draft</strong></span>
           </motion.div>
           <motion.div
             animate={{ y: [0, 6, 0] }}
@@ -649,43 +767,94 @@ export function NapkinApp() {
             <aside className="workspace-sidebar">
               <div className="side-heading"><span>01</span> YOUR SKETCH</div>
               <div
-                className={`upload-zone ${isDragging ? "is-dragging" : ""} ${file ? "has-file" : ""}`}
+                className={`sketch-maker ${isDragging ? "is-dragging" : ""} ${file ? "has-file" : ""}`}
                 data-tour="upload-zone"
                 onDragEnter={(event) => { event.preventDefault(); setIsDragging(true); }}
                 onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsDragging(false); }}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={onDrop}
               >
-                <input
-                  accept="image/png,image/jpeg,image/webp"
-                  className="sr-only"
-                  onChange={onFileChange}
-                  ref={fileInputRef}
-                  type="file"
-                />
-                {imagePreview ? (
-                  <div className="upload-preview">
-                    {/* The browser creates this URL locally; the source image is never uploaded to storage. */}
-                    <Image
-                      alt="Your uploaded napkin sketch"
-                      className="sketch-image"
-                      height={150}
-                      src={imagePreview}
-                      unoptimized
-                      width={260}
-                    />
-                    <button className="replace-sketch" onClick={() => fileInputRef.current?.click()} type="button"><PenLine size={13} /> Change sketch</button>
-                  </div>
-                ) : (
-                  <button className="upload-trigger" onClick={() => fileInputRef.current?.click()} type="button">
-                    <span className="upload-icon"><ImagePlus size={19} /></span>
-                    <strong>Drop your sketch here</strong>
-                    <span>or <u>browse files</u></span>
-                    <small>PNG, JPG or WebP · max 8 MB</small>
+                <div aria-label="Choose how to add a sketch" className="sketch-mode-tabs" role="tablist">
+                  <button
+                    aria-selected={sketchMode === "upload"}
+                    className={sketchMode === "upload" ? "sketch-mode-tab active" : "sketch-mode-tab"}
+                    onClick={() => setSketchMode("upload")}
+                    role="tab"
+                    type="button"
+                  >
+                    <ImagePlus size={13} /> Upload
                   </button>
+                  <button
+                    aria-selected={sketchMode === "draw"}
+                    className={sketchMode === "draw" ? "sketch-mode-tab active" : "sketch-mode-tab"}
+                    onClick={() => setSketchMode("draw")}
+                    role="tab"
+                    type="button"
+                  >
+                    <PenLine size={13} /> Draw here
+                  </button>
+                  <input
+                    accept="image/png,image/jpeg,image/webp"
+                    className="sr-only"
+                    onChange={onFileChange}
+                    ref={fileInputRef}
+                    type="file"
+                  />
+                </div>
+                {sketchMode === "upload" ? (
+                  imagePreview ? (
+                    <div className="upload-zone has-file">
+                      <div className="upload-preview">
+                        <Image
+                          alt="Your sketch, ready for generation"
+                          className="sketch-image"
+                          height={150}
+                          src={imagePreview}
+                          unoptimized
+                          width={260}
+                        />
+                        <button className="replace-sketch" onClick={() => fileInputRef.current?.click()} type="button">
+                          <PenLine size={13} /> Choose another
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`upload-zone ${isDragging ? "is-dragging" : ""}`}>
+                      <button className="upload-trigger" onClick={() => fileInputRef.current?.click()} type="button">
+                        <span className="upload-icon"><ImagePlus size={19} /></span>
+                        <strong>Choose a photo of your sketch</strong>
+                        <span>or <u>drop an image here</u></span>
+                        <small>PNG, JPG or WebP · max 8 MB</small>
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <div className="drawing-pad">
+                    <div className="drawing-toolbar">
+                      <span><span className={hasDrawing ? "drawing-status ready" : "drawing-status"} />{hasDrawing ? "Sketch ready" : "Draw your idea"}</span>
+                      <div>
+                        <button aria-label="Undo last stroke" disabled={!hasDrawing} onClick={undoDrawing} type="button"><Undo2 size={14} /> Undo</button>
+                        <button aria-label="Clear sketch" disabled={!hasDrawing} onClick={clearDrawing} type="button"><Trash2 size={13} /> Clear</button>
+                      </div>
+                    </div>
+                    <canvas
+                      aria-label="Sketch canvas. Draw with your mouse, finger, or stylus."
+                      className="drawing-canvas"
+                      height={380}
+                      onPointerCancel={finishDrawing}
+                      onPointerDown={startDrawing}
+                      onPointerMove={continueDrawing}
+                      onPointerUp={finishDrawing}
+                      ref={drawingCanvasRef}
+                      role="img"
+                      tabIndex={0}
+                      width={640}
+                    />
+                    <p className="drawing-hint">Mouse, finger or stylus · rough is perfect</p>
+                  </div>
                 )}
               </div>
-              {file && <p className="file-caption"><Check size={13} /> {file.name}</p>}
+              {file && <p className="file-caption"><Check size={13} /> {sketchMode === "draw" ? "Your drawing is ready to generate" : file.name}</p>}
 
               <div className="settings-divider" />
               <div className="side-heading" data-tour="canvas-settings"><span>02</span> MAKE IT FIT</div>
@@ -725,27 +894,43 @@ export function NapkinApp() {
               <div className="dimension-preview"><span>CANVAS</span><strong>{canvasSize.width} × {canvasSize.height}<small> px</small></strong></div>
 
               <div className="prompt-field">
-                <label htmlFor="design-direction">A little extra direction <span>OPTIONAL</span></label>
+                <label htmlFor="design-direction">
+                  {file ? "A little extra direction" : "Describe your idea"}
+                  <span>{file ? "OPTIONAL" : "NO SKETCH? NO PROBLEM"}</span>
+                </label>
                 <textarea
                   id="design-direction"
                   maxLength={1200}
                   onChange={(event) => setPrompt(event.target.value)}
-                  placeholder="“Warm, editorial, with a hint of citrus…”"
+                  placeholder={file
+                    ? "“Warm, editorial, with a hint of citrus…”"
+                    : "“A cozy coffee shop website with a menu and a map…”"}
                   rows={3}
                   value={prompt}
                 />
               </div>
+              {!file && !prompt.trim() && (
+                <p className="generation-hint">Upload a sketch, draw above, or describe your idea to begin.</p>
+              )}
               <MagneticButton
                 className="button button-lime generate-button"
                 data-tour="generate-button"
-                disabled={isGenerating}
+                disabled={isGenerating || (!file && !prompt.trim())}
                 onClick={() => void generate()}
               >
                 {isGenerating ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />}
-                {isGenerating ? "Making your first draft…" : generated ? "Generate a new draft" : "Turn it into a UI"}
+                {isGenerating
+                  ? "Making your first draft…"
+                  : generated
+                    ? "Generate a new draft"
+                    : file
+                      ? "Turn your sketch into a UI"
+                      : prompt.trim()
+                        ? "Create UI from my idea"
+                        : "Add an idea to get started"}
                 {!isGenerating && <ArrowRight size={16} />}
               </MagneticButton>
-              <p className="privacy-note"><LockKeyhole size={12} /> Your sketch is sent securely for generation, not stored.</p>
+              <p className="privacy-note"><LockKeyhole size={12} /> Your sketch is sent to local Gemma and not stored by Napkin.</p>
             </aside>
 
             <section aria-label="Preview and generated code" className="editor-area">
@@ -847,7 +1032,7 @@ export function NapkinApp() {
             {user && <button onClick={signOut}>Sign out</button>}
           </div>
         </div>
-        <div className="footer-bottom"><span>© 2026 NAPKIN AI · DEVELOPED BY FELIX &amp; NONYDEV</span><span>MADE FOR THE “WHAT IF?”</span></div>
+        <div className="footer-bottom"><span>© 2026 NAPKIN · DEVELOPED BY FELIX &amp; NONYDEV</span><span>MADE FOR THE “WHAT IF?”</span></div>
       </footer>
 
       <AnimatePresence>

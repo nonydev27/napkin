@@ -33,7 +33,7 @@ export default function SharedProjectPage({
         <SharedProjectView params={params} />
       </Suspense>
       <footer className="footer-bottom" style={{ padding: "15px 28px" }}>
-        <span>MADE WITH NAPKIN AI · OPEN SOURCE</span>
+        <span>MADE WITH NAPKIN · OPEN SOURCE</span>
         <span>DEVELOPED BY FELIX &amp; NONYDEV</span>
       </footer>
     </main>

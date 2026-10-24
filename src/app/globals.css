@@ -230,6 +230,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .upload-zone { min-height: 167px; margin-top: 14px; overflow: hidden; border: 1px dashed #515247; border-radius: 9px; background: rgba(255,255,255,.013); transition: border .2s, background .2s; }
 .upload-zone:hover, .upload-zone.is-dragging { border-color: var(--lime); background: rgba(219,250,105,.04); }
 .upload-zone.has-file { border-style: solid; border-color: rgba(219,250,105,.3); }
+.sketch-maker { overflow: hidden; margin-top: 14px; border: 1px solid rgba(240,240,220,.12); border-radius: 9px; background: rgba(255,255,255,.018); }
+.sketch-maker.is-dragging { border-color: var(--lime); background: rgba(219,250,105,.05); }
+.sketch-maker > .upload-zone { margin-top: 0; border: 0; background: transparent; }
+.sketch-mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 5px; border-bottom: 1px solid rgba(240,240,220,.09); background: rgba(0,0,0,.08); }
+.sketch-mode-tab { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 5px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #9a9b8f; cursor: pointer; font-size: 9px; }
+.sketch-mode-tab:hover { color: #e6e6dc; }
+.sketch-mode-tab.active { border-color: rgba(219,250,105,.22); background: rgba(219,250,105,.08); color: var(--lime); }
+.drawing-pad { padding: 9px; }
+.drawing-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; color: #bcbdb1; font-size: 8px; }
+.drawing-toolbar > span, .drawing-toolbar > div { display: flex; align-items: center; gap: 6px; }
+.drawing-status { width: 6px; height: 6px; border-radius: 50%; background: #77786e; }
+.drawing-status.ready { background: #86b348; box-shadow: 0 0 8px rgba(134,179,72,.55); }
+.drawing-toolbar button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #a5a69a; cursor: pointer; font-size: 8px; }
+.drawing-toolbar button:hover:not(:disabled) { border-color: var(--line); color: var(--lime); }
+.drawing-toolbar button:disabled { opacity: .38; cursor: not-allowed; }
+.drawing-canvas { width: 100%; height: auto; display: block; border: 1px solid #d8d8cf; border-radius: 5px; background: #fff; cursor: crosshair; touch-action: none; }
+.drawing-hint { margin: 7px 0 1px; color: #838479; font-size: 8px; text-align: center; }
 .upload-trigger { width: 100%; min-height: 165px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 0; background: none; color: #909187; cursor: pointer; font-size: 9px; }
 .upload-icon { width: 35px; height: 35px; display: grid; place-items: center; margin-bottom: 4px; border: 1px solid rgba(219,250,105,.22); border-radius: 10px; background: rgba(219,250,105,.08); color: var(--lime); }
 .upload-trigger strong { color: #d7d8cd; font-size: 10px; font-weight: 620; }
@@ -258,6 +275,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .prompt-field textarea::placeholder { color: #6b6c62; }
 .generate-button { width: 100%; justify-content: space-between; margin-top: 15px; padding: 13px 13px; font-size: 10px; }
 .generate-button > svg:first-child { flex: none; }
+.generate-button:disabled { background: #34352d; color: #9a9b90; opacity: .85; cursor: not-allowed; }
+.generation-hint { margin: 9px 0 0; color: #929388; font-size: 8px; line-height: 1.6; text-align: center; }
 .privacy-note { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 10px 0 0; color: #76776c; font-size: 8px; }
 .editor-area { min-width: 0; padding: 18px; background: #151611; }
 .editor-toolbar { height: 37px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(240,240,220,.09); }
@@ -360,6 +379,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .auth-switch button { border: 0; background: none; color: var(--lime); cursor: pointer; font-size: inherit; }
 .auth-message { padding: 9px 10px; border-radius: 6px; font-size: 9px; line-height: 1.6; overflow-wrap: anywhere; }
 .auth-error { background: rgba(255,146,134,.08); color: #ffc3bb; }
+.auth-message a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.auth-message code { padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,.08); font-family: var(--font-app-mono); font-size: .95em; }
 .auth-notice { background: rgba(219,250,105,.08); color: #e5f3ad; }
 .tour-backdrop { z-index: 90; align-items: end; justify-items: end; padding: 25px; background: rgba(5,6,4,.55); }
 .tour-card { position: relative; width: min(100%, 330px); overflow: hidden; padding: 24px; border: 1px solid rgba(240,240,220,.18); border-radius: 13px; background: #20211b; box-shadow: 0 20px 70px #0008; }
@@ -501,6 +522,16 @@ html[data-theme="light"] .upload-zone { border-color: #a7a99d; background: rgba(
 html[data-theme="light"] .upload-zone:hover,
 html[data-theme="light"] .upload-zone.is-dragging { border-color: #819e24; background: rgba(219,250,105,.13); }
 html[data-theme="light"] .upload-zone.has-file { border-color: rgba(113,143,25,.5); }
+html[data-theme="light"] .sketch-maker { border-color: rgba(25,27,19,.14); background: rgba(255,255,255,.65); }
+html[data-theme="light"] .sketch-mode-tabs { border-color: rgba(25,27,19,.11); background: #ebebe4; }
+html[data-theme="light"] .sketch-mode-tab { color: #5d6054; }
+html[data-theme="light"] .sketch-mode-tab:hover { color: #282a21; }
+html[data-theme="light"] .sketch-mode-tab.active { border-color: rgba(113,143,25,.28); background: rgba(174,205,78,.18); color: #536a10; }
+html[data-theme="light"] .drawing-toolbar { color: #44473c; }
+html[data-theme="light"] .drawing-toolbar button { color: #55584c; }
+html[data-theme="light"] .drawing-hint,
+html[data-theme="light"] .generation-hint { color: #65685c; }
+html[data-theme="light"] .generate-button:disabled { background: #dedfd4; color: #6a6d61; }
 html[data-theme="light"] .upload-trigger,
 html[data-theme="light"] .replace-sketch { color: #5d6054; }
 html[data-theme="light"] .upload-trigger strong { color: #32342b; }
@@ -576,6 +607,7 @@ html[data-theme="light"] .auth-divider { color: #73766a; }
 html[data-theme="light"] .auth-form label { color: #3c3e34; }
 html[data-theme="light"] .auth-form input { border-color: #c8c9bd; background: #fff; color: #22241d; }
 html[data-theme="light"] .auth-error { background: rgba(189,81,70,.08); color: #8d3a32; }
+html[data-theme="light"] .auth-message code { background: rgba(25,27,19,.08); }
 html[data-theme="light"] .auth-notice { background: rgba(136,169,29,.11); color: #46580f; }
 html[data-theme="light"] .tour-skip { color: #62655a; }
 html[data-theme="light"] .tour-progress { background: #e3e4d9; }

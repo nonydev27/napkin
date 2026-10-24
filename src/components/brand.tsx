@@ -55,11 +55,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       <span className="brand-mark">
         <NapkinMark />
       </span>
-      {!compact && (
-        <span>
-          napkin<span className="brand-ai">.ai</span>
-        </span>
-      )}
+      {!compact && <span>napkin</span>}
     </Link>
   );
 }

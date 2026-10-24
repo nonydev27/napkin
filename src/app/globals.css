@@ -72,7 +72,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   border-radius: 10px 10px 10px 4px;
   overflow: hidden;
 }
-.brand-ai { color: var(--lime); font-weight: 500; }
 .main-nav { display: flex; align-items: center; gap: 34px; color: #b4b5a9; font-size: 12px; }
 .main-nav a { display: flex; align-items: center; gap: 5px; transition: color .2s ease; }
 .main-nav a:hover, .footer-links a:hover { color: var(--lime); }

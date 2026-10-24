@@ -14,6 +14,9 @@ create index if not exists projects_user_created_at_idx
 
 alter table public.projects enable row level security;
 
+grant select on public.projects to anon, authenticated;
+grant insert, update, delete on public.projects to authenticated;
+
 create policy "Users can read their projects and public shares"
   on public.projects for select
   to anon, authenticated

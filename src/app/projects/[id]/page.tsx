@@ -1,6 +1,7 @@
 import { ArrowDownToLine, ArrowLeft, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { ShareToggle } from "@/components/share-toggle";
 import { Brand } from "@/components/brand";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { createClient } from "@/lib/supabase/server";
@@ -70,6 +71,7 @@ async function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
             <span className="eyebrow"><LockKeyhole size={12} /> {project.is_public ? "SHARED LINK" : "PRIVATE PROJECT"}</span>
             <h1>{project.title}</h1>
           </div>
+          <ShareToggle id={id} isPublic={project.is_public} />
           <a
             className="button button-lime"
             download={`${project.title || "napkin-ui"}.html`}

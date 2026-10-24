@@ -66,29 +66,40 @@ export async function POST(request: Request) {
   }
 
   const { id, title, code, width, height } = payload;
+  const shareOnly = payload.share !== undefined &&
+    id !== undefined &&
+    title === undefined && code === undefined && width === undefined && height === undefined;
+
   if (
     (id !== undefined && (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) ||
     (payload.share !== undefined && typeof payload.share !== "boolean") ||
-    typeof title !== "string" ||
-    !title.trim() ||
-    title.length > 80 ||
-    typeof code !== "string" ||
-    !code.trim() ||
-    code.length > 1_000_000 ||
-    !isDimension(width, 240, 2400) ||
-    !isDimension(height, 320, 2400)
+    (shareOnly ? false : (
+      typeof title !== "string" ||
+      !title.trim() ||
+      title.length > 80 ||
+      typeof code !== "string" ||
+      !code.trim() ||
+      code.length > 1_000_000 ||
+      !isDimension(width, 240, 2400) ||
+      !isDimension(height, 320, 2400)
+    ))
   ) {
     return errorResponse("Project details are invalid or too large.", 400);
   }
 
-  const values = {
-    title: title.trim(),
-    code,
-    width,
-    height,
-  };
-  if (payload.share === true) {
-    Object.assign(values, { is_public: true });
+  const values: Record<string, unknown> = {};
+  if (shareOnly) {
+    values.is_public = payload.share === true;
+  } else {
+    Object.assign(values, {
+      title: (title as string).trim(),
+      code,
+      width,
+      height,
+    });
+    if (payload.share !== undefined) {
+      values.is_public = payload.share === true;
+    }
   }
   const query = id
     ? auth.supabase.from("projects").update(values).eq("id", id)

@@ -74,7 +74,7 @@ npx tsc --noEmit
 npm run build
 ```
 
-Generated projects are saved to the signed-in user's project history. Sharing creates a public read-only URL; toggling it off is not currently exposed in the UI, so treat shared links as public. Code and asset exports require sign-in. The one-time onboarding tour can be replayed from **Take the quick tour** in the workspace. The theme switch in the header is keyboard accessible and persists across the landing page, workspace, projects, and shared previews.
+Generated projects are saved to the signed-in user's project history. Sharing creates a public read-only URL; you can toggle it back off with **Make private** on the project detail page. Code and asset exports require sign-in. The one-time onboarding tour can be replayed from **Take the quick tour** in the workspace. The theme switch in the header is keyboard accessible and persists across the landing page, workspace, projects, and shared previews.
 
 ## License
 

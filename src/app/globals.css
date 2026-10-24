@@ -407,6 +407,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .project-detail-toolbar .eyebrow { color: #65675c; }
 .project-detail-toolbar h1 { margin: 6px 0 0; font-size: 17px; font-weight: 650; letter-spacing: -.04em; }
 .project-detail-toolbar .button { flex: none; }
+.share-toggle-wrap { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.share-toggle { display: inline-flex; align-items: center; gap: 7px; }
+.share-toggle-message { font-size: 11px; color: #65675c; }
 .not-found-panel { display: grid; min-height: 75vh; place-content: center; padding: 30px; color: #98998d; text-align: center; }
 .not-found-panel h1 { color: var(--paper); font-size: 34px; letter-spacing: -.05em; }
 
@@ -669,6 +672,7 @@ html[data-theme="light"] .tour-highlight { box-shadow: 0 0 0 8px rgba(135,169,29
   .projects-header-actions { gap: 10px; }
   .projects-header-actions .header-projects { font-size: 10px; }
   .project-detail-toolbar { align-items: flex-start; flex-direction: column; }
+  .share-toggle-wrap { width: 100%; justify-content: flex-end; }
   .project-detail-toolbar .button { align-self: flex-end; }
 }
 @media (max-width: 420px) {

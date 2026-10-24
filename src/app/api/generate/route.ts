@@ -14,11 +14,17 @@ export async function POST(request: Request) {
   const height = Number(formData.get("height"));
 
   if (imageValue !== null && !(imageValue instanceof File)) {
-    return NextResponse.json({ error: "The sketch upload is invalid. Choose an image and try again." }, { status: 400 });
+    return NextResponse.json(
+      { error: "The sketch upload is invalid. Choose an image and try again." },
+      { status: 400 },
+    );
   }
 
   const image = imageValue instanceof File ? imageValue : null;
-  if (image && (!ALLOWED_IMAGE_TYPES.has(image.type) || image.size === 0 || image.size > MAX_IMAGE_BYTES)) {
+  if (
+    image &&
+    (!ALLOWED_IMAGE_TYPES.has(image.type) || image.size === 0 || image.size > MAX_IMAGE_BYTES)
+  ) {
     return NextResponse.json(
       { error: "Use a PNG, JPEG, or WebP image smaller than 8 MB." },
       { status: 400 },
@@ -50,15 +56,126 @@ export async function POST(request: Request) {
     );
   }
 
-  const ollamaBaseUrl = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434")
-    .trim()
-    .replace(/\/+$/, "");
-  const model = process.env.GEMMA_MODEL || "gemma4:e4b";
   const designPrompt = `${image ? "Turn this hand-drawn UI sketch" : "Create a UI from this description"} into one polished, responsive, self-contained HTML document.
 Canvas target: ${width}x${height}px. ${prompt ? `Design direction: ${prompt}` : ""}
 Return only HTML, with all CSS in a style tag and any small interactions in inline JavaScript.
 Do not load remote scripts, stylesheets, fonts, or images. Do not include markdown fences.
 Make the design visually complete, accessible, mobile responsive, and faithful to the sketch.`;
+
+  const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
+  const isGeminiConfigured = Boolean(
+    geminiApiKey &&
+    geminiApiKey !== "your_actual_api_key_here" &&
+    geminiApiKey.length > 10,
+  );
+  const explicitProvider = process.env.AI_PROVIDER?.toLowerCase().trim();
+  const useGemini =
+    explicitProvider === "gemini" ||
+    (explicitProvider !== "ollama" && isGeminiConfigured);
+
+  // 1. Google Gemini API flow
+  if (useGemini && geminiApiKey) {
+    const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`;
+
+    try {
+      const parts: Array<{
+        text?: string;
+        inline_data?: { mime_type: string; data: string };
+      }> = [{ text: designPrompt }];
+
+      if (image) {
+        const base64Data = Buffer.from(await image.arrayBuffer()).toString("base64");
+        parts.push({
+          inline_data: {
+            mime_type: image.type,
+            data: base64Data,
+          },
+        });
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(120_000),
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.25,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorDetail = await response.json().catch(() => null);
+        const apiError = errorDetail?.error?.message;
+        console.error("Gemini API error:", response.status, errorDetail || apiError);
+
+        if (response.status === 400 && apiError?.includes("API_KEY_INVALID")) {
+          return NextResponse.json(
+            { error: "Your GEMINI_API_KEY is invalid. Check Google AI Studio and update your key." },
+            { status: 401 },
+          );
+        }
+
+        if (response.status === 429) {
+          return NextResponse.json(
+            { error: "Gemini API rate limit reached. Please wait a moment and try again." },
+            { status: 429 },
+          );
+        }
+
+        return NextResponse.json(
+          { error: apiError || "Gemini generation failed. Check your API key and try again." },
+          { status: 502 },
+        );
+      }
+
+      const result = (await response.json()) as {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+      };
+
+      const rawContent =
+        result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      const html = rawContent
+        .trim()
+        .replace(/^```(?:html)?\s*/i, "")
+        .replace(/\s*```$/, "");
+
+      if (!html.toLowerCase().includes("<html") || !html.toLowerCase().includes("</html>")) {
+        return NextResponse.json(
+          { error: "The model returned incomplete HTML. Try generating again." },
+          { status: 502 },
+        );
+      }
+
+      return NextResponse.json({ code: html });
+    } catch (error) {
+      if (error instanceof Error && error.name === "TimeoutError") {
+        return NextResponse.json(
+          { error: "Gemini generation took too long. Try again with a simpler prompt." },
+          { status: 504 },
+        );
+      }
+
+      console.error("Gemini API connection error:", error);
+      return NextResponse.json(
+        { error: "Could not reach the Gemini API. Check your internet connection and try again." },
+        { status: 503 },
+      );
+    }
+  }
+
+  // 2. Ollama / Gemma flow (default local inference)
+  const ollamaBaseUrl = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434")
+    .trim()
+    .replace(/\/+$/, "");
+  const model = process.env.GEMMA_MODEL || "gemma4:e4b";
 
   try {
     const userMessage: {
@@ -138,7 +255,7 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
     return NextResponse.json(
       {
         error:
-          "Could not reach Ollama. Install it, run `ollama run gemma4:e4b`, and retry.",
+          "Could not reach Ollama at 127.0.0.1:11434. Start Ollama (`ollama run gemma4:e4b`) or configure GEMINI_API_KEY in .env.local.",
       },
       { status: 503 },
     );

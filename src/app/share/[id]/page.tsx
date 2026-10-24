@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeSwitch } from "@/components/theme-provider";
+import { ProjectCopyButton, ProjectDownloadButton } from "@/components/project-actions";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { makePreviewDocument } from "@/lib/sandbox";
@@ -47,7 +48,13 @@ async function SharedProjectView({
 }) {
   const { id } = await params;
   if (!isSupabaseConfigured() || !/^[0-9a-f-]{36}$/i.test(id)) {
-    return <div className="not-found-panel"><h1>This link is a little lost.</h1><p>That shared napkin isn’t available.</p></div>;
+    return (
+      <div className="not-found-panel">
+        <h1>This link is a little lost.</h1>
+        <p>That shared napkin isn’t available.</p>
+        <Link className="button button-lime" href="/">Back to Napkin</Link>
+      </div>
+    );
   }
 
   const supabase = await createClient();
@@ -60,7 +67,13 @@ async function SharedProjectView({
 
   if (error) console.error("Shared project lookup failed:", error);
   if (!data) {
-    return <div className="not-found-panel"><h1>This link is a little lost.</h1><p>That shared napkin isn’t available.</p></div>;
+    return (
+      <div className="not-found-panel">
+        <h1>This link is a little lost.</h1>
+        <p>That shared napkin isn’t available or is currently private.</p>
+        <Link className="button button-lime" href="/">Back to Napkin</Link>
+      </div>
+    );
   }
 
   const project = data as SharedProject;
@@ -69,6 +82,16 @@ async function SharedProjectView({
   return (
     <section className="share-canvas-wrap">
       <div className="share-canvas">
+        <div className="project-detail-toolbar">
+          <div>
+            <span className="eyebrow"><Sparkles size={12} /> PUBLIC SHARE</span>
+            <h1>{project.title}</h1>
+          </div>
+          <div className="project-detail-actions">
+            <ProjectCopyButton code={project.code} />
+            <ProjectDownloadButton code={project.code} title={project.title} />
+          </div>
+        </div>
         <iframe sandbox="allow-scripts" srcDoc={preview} title={`${project.title} live preview`} />
         <div className="share-meta">
           <strong><Sparkles size={13} /> {project.title}</strong>

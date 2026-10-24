@@ -21,16 +21,18 @@ export default function OpengraphImage() {
       >
         <div
           style={{
-            width: 168,
-            height: 168,
+            width: 160,
+            height: 160,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: 48,
-            background: "#dbfa69",
+            borderRadius: 40,
+            background: "#1c1d17",
+            border: "1px solid rgba(242, 241, 233, 0.14)",
+            boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5)",
           }}
         >
-          <svg width="128" height="128" viewBox="0 0 32 32">
+          <svg width="112" height="112" viewBox="0 0 32 32">
             <path
               d="M4 1h24a3 3 0 0 1 3 3v24a3 3 0 0 1-3 3H10L1 22V4a3 3 0 0 1 3-3Z"
               fill="#dbfa69"

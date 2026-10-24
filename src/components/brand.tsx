@@ -22,13 +22,13 @@ export function NapkinMark({ size = 31 }: { size?: number }) {
       <path
         d="M9 10.5c2.4-2.6 4.6 2.2 7-.4 2.3-2.5 4.4 1.9 6.8-.5"
         fill="none"
-        stroke="var(--ink, #11120e)"
+        stroke="#11120e"
         strokeLinecap="round"
         strokeWidth="2.4"
       />
       {/* "Real" UI lines: crisp horizontal bars below, dot on the right */}
       <rect
-        fill="var(--ink, #11120e)"
+        fill="#11120e"
         height="2.4"
         rx="1.2"
         width="9"
@@ -36,15 +36,15 @@ export function NapkinMark({ size = 31 }: { size?: number }) {
         y="16"
       />
       <rect
-        fill="var(--ink, #11120e)"
+        fill="#11120e"
         height="2.4"
         rx="1.2"
         width="6"
         x="9"
         y="21"
       />
-      <circle cx="21.5" cy="17.2" fill="var(--ink, #11120e)" r="1.5" />
-      <circle cx="20" cy="22.2" fill="var(--ink, #11120e)" r="1.2" />
+      <circle cx="21.5" cy="17.2" fill="#11120e" r="1.5" />
+      <circle cx="20" cy="22.2" fill="#11120e" r="1.2" />
     </svg>
   );
 }
@@ -55,7 +55,11 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       <span className="brand-mark">
         <NapkinMark />
       </span>
-      {!compact && <span>napkin</span>}
+      {!compact && (
+        <span>
+          napkin<span className="brand-ai">.ai</span>
+        </span>
+      )}
     </Link>
   );
 }

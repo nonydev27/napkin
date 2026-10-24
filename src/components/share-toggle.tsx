@@ -1,6 +1,7 @@
 "use client";
 
-import { Globe, LockIcon } from "lucide-react";
+import { Check, Copy, ExternalLink, Globe, LockIcon } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 export function ShareToggle({
@@ -12,6 +13,7 @@ export function ShareToggle({
 }) {
   const [isPublicState, setIsPublicState] = useState(isPublic);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   async function toggle() {
@@ -33,9 +35,10 @@ export function ShareToggle({
         setIsPublicState(result.project.is_public);
         setMessage(
           result.project.is_public
-            ? "This napkin is public."
-            : "This napkin is private.",
+            ? "Public share enabled."
+            : "Made private.",
         );
+        window.setTimeout(() => setMessage(null), 3500);
       }
     } catch {
       setMessage("Could not update sharing.");
@@ -44,17 +47,54 @@ export function ShareToggle({
     }
   }
 
+  async function copyShareUrl() {
+    try {
+      const shareUrl = `${window.location.origin}/share/${id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      setMessage("Could not copy link to clipboard.");
+    }
+  }
+
   return (
     <div className="share-toggle-wrap">
       <button
-        className="button share-toggle"
-        onClick={() => void toggle()}
+        className={`share-toggle ${isPublicState ? "is-public" : ""}`}
         disabled={busy}
+        onClick={() => void toggle()}
+        type="button"
       >
-        {isPublicState ? <Globe size={14} /> : <LockIcon size={14} />}
-        {busy ? "Updating…" : isPublicState ? "Make private" : "Make public"}
+        {isPublicState ? <Globe size={13} /> : <LockIcon size={13} />}
+        <span>{busy ? "Updating…" : isPublicState ? "Make private" : "Make public"}</span>
       </button>
-      {message ? <span className="share-toggle-message">{message}</span> : null}
+
+      {isPublicState && (
+        <>
+          <button
+            className="share-copy-button"
+            onClick={() => void copyShareUrl()}
+            title="Copy public link"
+            type="button"
+          >
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+            <span>{copied ? "Link copied!" : "Copy link"}</span>
+          </button>
+          <Link
+            className="share-view-link"
+            href={`/share/${id}`}
+            rel="noreferrer"
+            target="_blank"
+            title="Open public view"
+          >
+            <span>View public</span>
+            <ExternalLink size={12} />
+          </Link>
+        </>
+      )}
+
+      {message && <span className="share-toggle-message">{message}</span>}
     </div>
   );
 }

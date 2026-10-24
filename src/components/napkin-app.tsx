@@ -51,7 +51,7 @@ import {
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { makePreviewDocument } from "@/lib/sandbox";
 import { Brand, GitHubMark } from "@/components/brand";
-import { ThemeSwitch } from "@/components/theme-provider";
+import { ThemeSwitch, useTheme } from "@/components/theme-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -130,6 +130,7 @@ export function NapkinApp() {
   const { scrollY } = useScroll();
   const glowY = useTransform(scrollY, [0, 850], [0, 220]);
   const glowRotate = useTransform(scrollY, [0, 900], [-8, 16]);
+  const { theme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<WorkspaceAction | null>(null);
@@ -141,6 +142,7 @@ export function NapkinApp() {
   const [imagePreview, setImagePreview] = useState("");
   const [prompt, setPrompt] = useState("");
   const [code, setCode] = useState("");
+  const [previewCode, setPreviewCode] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [sketchMode, setSketchMode] = useState<"upload" | "draw">("upload");
@@ -176,6 +178,11 @@ export function NapkinApp() {
     if (!imagePreview) return;
     return () => URL.revokeObjectURL(imagePreview);
   }, [imagePreview]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPreviewCode(code), 120);
+    return () => window.clearTimeout(timer);
+  }, [code]);
 
   useEffect(() => {
     const canvas = drawingCanvasRef.current;
@@ -551,7 +558,9 @@ export function NapkinApp() {
     workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const previewSrcDoc = generated ? makePreviewDocument(code) : "";
+  const previewSrcDoc = (previewCode || code)
+    ? makePreviewDocument(previewCode || code)
+    : "";
 
   return (
     <main className="site-shell">
@@ -930,7 +939,7 @@ export function NapkinApp() {
                         : "Add an idea to get started"}
                 {!isGenerating && <ArrowRight size={16} />}
               </MagneticButton>
-              <p className="privacy-note"><LockKeyhole size={12} /> Your sketch is sent to local Gemma and not stored by Napkin.</p>
+              <p className="privacy-note"><LockKeyhole size={12} /> Your sketch is processed securely and not stored by Napkin.</p>
             </aside>
 
             <section aria-label="Preview and generated code" className="editor-area">
@@ -950,7 +959,6 @@ export function NapkinApp() {
                     <div className={`preview-panel ${showPreview ? "panel-visible" : "panel-hidden"}`}>
                       <div className="preview-canvas" style={{ aspectRatio }}>
                         <iframe
-                          key={previewSrcDoc}
                           sandbox="allow-scripts"
                           srcDoc={previewSrcDoc}
                           title="Generated UI live preview"
@@ -976,7 +984,7 @@ export function NapkinApp() {
                           scrollbar: { verticalScrollbarSize: 8 },
                           tabSize: 2,
                         }}
-                        theme="vs-dark"
+                        theme={theme === "light" ? "vs" : "vs-dark"}
                         value={code}
                       />
                     </div>

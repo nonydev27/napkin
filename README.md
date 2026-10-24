@@ -15,8 +15,15 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000). Install and start Ollama as described below for free, local AI generation. Supabase is optional and only needed for account-protected export, sharing, and saved project history.
 
 ```dotenv
+# Option 1: Free local Ollama with Gemma 4 (default)
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 GEMMA_MODEL=gemma4:e4b
+
+# Option 2: Google Gemini API (hosted multimodal vision)
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+
+# Supabase (optional, for accounts, private saving & public shares)
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 NEXT_PUBLIC_SITE_URL=
@@ -53,7 +60,10 @@ Restart `npm run dev` after saving `.env.local`. To test email signup, use an ad
 
 ## Generation
 
-The server validates image type, size, canvas dimensions, and prompt length before sending a sketch to your local Ollama/Gemma server. Generated sketches are not stored by Napkin. The default model is configurable with `GEMMA_MODEL`.
+The server validates image type, size, canvas dimensions, and prompt length before sending a sketch to the AI model. Generated sketches are not stored by Napkin.
+
+- **Local Gemma (Default):** Runs through your local Ollama instance (`ollama run gemma4:e4b`). Zero API cost, private, and 100% offline-capable.
+- **Google Gemini API:** Set `GEMINI_API_KEY` in `.env.local` to use hosted multimodal models (`gemini-2.5-flash` by default). Ideal for cloud deployments or systems without local inference hardware.
 
 Generation returns a standalone HTML document. The live preview runs in a sandboxed iframe with an opaque origin and a restrictive Content Security Policy; the editor never evaluates generated code in the main app.
 

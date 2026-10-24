@@ -1,7 +1,8 @@
-import { ArrowDownToLine, ArrowLeft, LockKeyhole } from "lucide-react";
+import { ArrowLeft, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ShareToggle } from "@/components/share-toggle";
+import { ProjectDownloadButton } from "@/components/project-actions";
 import { Brand } from "@/components/brand";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { createClient } from "@/lib/supabase/server";
@@ -47,7 +48,13 @@ async function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) {
-    return <div className="not-found-panel"><LockKeyhole size={22} /><h1>Sign in to see your projects.</h1><Link href="/">Back to Napkin</Link></div>;
+    return (
+      <div className="not-found-panel">
+        <LockKeyhole size={22} />
+        <h1>Sign in to see your projects.</h1>
+        <Link className="button button-lime" href="/">Back to Napkin</Link>
+      </div>
+    );
   }
 
   const { data, error } = await supabase
@@ -59,7 +66,13 @@ async function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
 
   if (error) console.error("Project detail lookup failed:", error);
   if (!data) {
-    return <div className="not-found-panel"><h1>This napkin isn’t available.</h1><p>Only you can see this saved project.</p></div>;
+    return (
+      <div className="not-found-panel">
+        <h1>This napkin isn’t available.</h1>
+        <p>Only you can see this saved project.</p>
+        <Link className="button button-lime" href="/projects">Back to My Projects</Link>
+      </div>
+    );
   }
 
   const project = data as Project;
@@ -71,14 +84,10 @@ async function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
             <span className="eyebrow"><LockKeyhole size={12} /> {project.is_public ? "SHARED LINK" : "PRIVATE PROJECT"}</span>
             <h1>{project.title}</h1>
           </div>
-          <ShareToggle id={id} isPublic={project.is_public} />
-          <a
-            className="button button-lime"
-            download={`${project.title || "napkin-ui"}.html`}
-            href={`data:text/html;charset=utf-8,${encodeURIComponent(project.code)}`}
-          >
-            <ArrowDownToLine size={14} /> Download HTML
-          </a>
+          <div className="project-detail-actions">
+            <ShareToggle id={id} isPublic={project.is_public} />
+            <ProjectDownloadButton code={project.code} title={project.title} />
+          </div>
         </div>
         <iframe
           sandbox="allow-scripts"

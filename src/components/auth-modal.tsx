@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { GitHubMark } from "@/components/brand";
+import { GitHubMark, NapkinMark } from "@/components/brand";
 
 type AuthModalProps = {
   open: boolean;
@@ -144,7 +144,7 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
             >
               <X size={18} />
             </button>
-            <span className="auth-mark"><span className="brand-mark">n</span></span>
+            <span className="auth-mark"><NapkinMark size={22} /></span>
             <p className="eyebrow">YOUR IDEAS, KEPT</p>
             <h2 id="auth-title">
               {mode === "signup" ? "Make it yours." : "Welcome back."}

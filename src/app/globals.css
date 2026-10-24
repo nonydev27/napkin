@@ -69,8 +69,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 750; letter-spacing: -.075em; white-space: nowrap; }
 .brand-mark {
   width: 31px; height: 31px; display: grid; place-items: center;
-  border-radius: 10px 10px 10px 4px; background: var(--lime); color: var(--ink);
-  font-size: 22px; font-weight: 850; line-height: 1; letter-spacing: -.1em; padding-right: 3px;
+  border-radius: 10px 10px 10px 4px;
+  overflow: hidden;
 }
 .brand-ai { color: var(--lime); font-weight: 500; }
 .main-nav { display: flex; align-items: center; gap: 34px; color: #b4b5a9; font-size: 12px; }

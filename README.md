@@ -1,4 +1,4 @@
-# 🖍️ Napkin AI -> 💻 
+# 🖍️ Napkin 
 **Draw it on a napkin. Ship it to production.**
 
 [![Open Source](https://img.shields.io/badge/Open%20Source-MIT-blue.svg)](https://opensource.org/licenses/MIT)

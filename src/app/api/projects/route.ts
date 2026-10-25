@@ -36,9 +36,31 @@ async function getAuthenticatedClient(): Promise<AuthenticatedClient> {
   return { supabase, user: data.user };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await getAuthenticatedClient();
   if ("error" in auth) return errorResponse(auth.error, auth.status);
+
+  const projectId = new URL(request.url).searchParams.get("id");
+  if (projectId) {
+    if (!/^[0-9a-f-]{36}$/i.test(projectId)) {
+      return errorResponse("Project ID is invalid.", 400);
+    }
+
+    const { data, error } = await auth.supabase
+      .from("projects")
+      .select("id, title, code, width, height, is_public")
+      .eq("id", projectId)
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Project load failed:", error);
+      return errorResponse("Could not load this project.", 500);
+    }
+    if (!data) return errorResponse("Project not found or you don’t have access.", 404);
+
+    return NextResponse.json({ project: data });
+  }
 
   const { data, error } = await auth.supabase
     .from("projects")

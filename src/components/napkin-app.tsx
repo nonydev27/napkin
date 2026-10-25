@@ -5,6 +5,7 @@ import {
   AnimatePresence,
   motion,
   useMotionValue,
+  useReducedMotion,
   useScroll,
   useSpring,
   useTransform,
@@ -121,13 +122,38 @@ function MagneticButton({
   );
 }
 
+function ScrollReveal({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const prefersReducedMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      className={className}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 28 }}
+      transition={{ delay, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+      viewport={{ amount: 0.18, once: true }}
+      whileInView={{ opacity: 1, y: 0 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 export function NapkinApp() {
   const workspaceRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
   const undoStack = useRef<ImageData[]>([]);
   const drawingRevision = useRef(0);
-  const { scrollY } = useScroll();
+  const prefersReducedMotion = useReducedMotion();
+  const { scrollY, scrollYProgress } = useScroll();
   const glowY = useTransform(scrollY, [0, 850], [0, 220]);
   const glowRotate = useTransform(scrollY, [0, 900], [-8, 16]);
   const { theme } = useTheme();
@@ -563,7 +589,8 @@ export function NapkinApp() {
     : "";
 
   return (
-    <main className="site-shell">
+    <main className="site-shell" id="top">
+      <motion.div aria-hidden="true" className="scroll-progress" style={{ scaleX: scrollYProgress }} />
       <header className="site-header">
         <div className="header-inner">
           <Brand />
@@ -711,11 +738,11 @@ export function NapkinApp() {
       </section>
 
       <section className="how-section section-wrap" id="how-it-works">
-        <div className="section-heading">
+        <ScrollReveal className="section-heading">
           <span className="eyebrow"><span className="eyebrow-star">✳</span> YOUR IDEA, UNSTUCK</span>
           <h2>A sketch is a<br /><span>very good start.</span></h2>
           <p>No design degree. No blank canvas panic. Just you, a doodle, and a little bit of “what if”.</p>
-        </div>
+        </ScrollReveal>
         <div className="steps-grid">
           {[
             { number: "01", icon: <Upload size={19} />, title: "Drop the napkin", copy: "A photo, screenshot or chaotic little sketch. If you can see the idea, we can work with it.", tag: "PNG · JPG · WEBP" },
@@ -739,14 +766,14 @@ export function NapkinApp() {
             </motion.article>
           ))}
         </div>
-        <div className="belief-strip">
+        <ScrollReveal className="belief-strip" delay={0.1}>
           <span>✳</span> Not a pixel-perfect promise. A way to get from “I have an idea” to “I can work with this.”
           <span className="belief-accent">That’s the magic.</span>
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="workspace-section" id="workspace" ref={workspaceRef}>
-        <div className="workspace-intro section-wrap">
+        <ScrollReveal className="workspace-intro section-wrap">
           <div>
             <span className="eyebrow"><span className="eyebrow-star">✳</span> THE NAPKIN WORKSPACE</span>
             <h2>Okay, let’s <span>make a thing.</span></h2>
@@ -755,9 +782,9 @@ export function NapkinApp() {
             <span className="workspace-status"><i /> YOUR CANVAS IS READY</span>
             <button className="tour-link" onClick={() => setTourStep(-1)}><CircleHelp size={15} /> Take the quick tour</button>
           </div>
-        </div>
+        </ScrollReveal>
 
-        <div className="workspace-frame section-wrap">
+        <ScrollReveal className="workspace-frame section-wrap" delay={0.08}>
           <div className="workspace-topbar">
             <div className="window-dots"><i /><i /><i /></div>
             <div className="workspace-file"><span className="file-dot" />{file?.name || "untitled-napkin"}<span className="file-status">{generated ? "saved locally" : "draft"}</span></div>
@@ -1017,19 +1044,34 @@ export function NapkinApp() {
               <button aria-label="Dismiss message" onClick={() => { setError(""); setMessage(""); }}><X size={14} /></button>
             </div>
           )}
-        </div>
+        </ScrollReveal>
         <div className="workspace-footnote section-wrap"><span>✳</span> An idea is a beginning, not a final answer. This is yours to keep changing.</div>
       </section>
 
-      <section className="closer-section">
+      <motion.section
+        className="closer-section"
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 24 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        viewport={{ amount: 0.2, once: true }}
+        whileInView={{ opacity: 1, y: 0 }}
+      >
         <div className="closer-star">✳</div>
         <span className="eyebrow">GOOD IDEAS AREN’T SUPPOSED TO STAY ON NAPKINS</span>
         <h2>What are you<br /><span>waiting to make?</span></h2>
         <MagneticButton className="button button-lime" onClick={scrollToWorkspace}><WandSparkles size={17} /> Start with a sketch <ArrowRight size={16} /></MagneticButton>
         <div className="closer-doodle">✳ <span>made by you</span> ↗</div>
-      </section>
+      </motion.section>
 
       <footer className="site-footer">
+        <ScrollReveal className="footer-callout">
+          <div>
+            <span className="footer-callout-kicker"><Sparkles size={13} /> YOUR NEXT IDEA IS ALREADY WAITING</span>
+            <p>One sketch is all it takes to get going.</p>
+          </div>
+          <MagneticButton className="button button-lime" onClick={scrollToWorkspace}>
+            Make something <ArrowUpRight size={15} />
+          </MagneticButton>
+        </ScrollReveal>
         <div className="footer-top">
           <Brand />
           <p>Ideas deserve to get out of your notes app.</p>
@@ -1040,7 +1082,11 @@ export function NapkinApp() {
             {user && <button onClick={signOut}>Sign out</button>}
           </div>
         </div>
-        <div className="footer-bottom"><span>© 2026 NAPKIN · DEVELOPED BY FELIX &amp; NONYDEV</span><span>MADE FOR THE “WHAT IF?”</span></div>
+        <div className="footer-bottom">
+          <span>© 2026 NAPKIN · DEVELOPED BY FELIX &amp; NONYDEV</span>
+          <span>MADE FOR THE “WHAT IF?”</span>
+          <a href="#top">BACK TO TOP <ArrowUpRight size={11} /></a>
+        </div>
       </footer>
 
       <AnimatePresence>

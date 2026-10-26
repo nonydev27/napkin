@@ -1,5 +1,5 @@
 const PREVIEW_POLICY =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: https:; font-src data: https:; connect-src 'none'; form-action 'none'; base-uri 'none'";
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src data: https://fonts.gstatic.com; img-src data: blob: https:; connect-src 'none'; form-action 'none'; base-uri 'none';";
 
 export function makePreviewDocument(html: string): string {
   const policy = `<meta http-equiv="Content-Security-Policy" content="${PREVIEW_POLICY}">`;

@@ -65,11 +65,14 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 1. Push your repository to GitHub.
 2. In [Vercel Dashboard](https://vercel.com/new), import your `napkin` repository.
 3. In **Project Settings → Environment Variables**, add:
+   - `AI_PROVIDER`: `gemini` (Production, Preview, and Development).
    - `GEMINI_API_KEY`: Your key from [Google AI Studio](https://aistudio.google.com/apikey).
+   - `GEMINI_MODEL`: `gemini-3.8-flash`.
    - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase Project URL (`https://<project-ref>.supabase.co`).
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: Your Supabase Publishable / Anon key.
    - `NEXT_PUBLIC_SITE_URL`: Your deployed Vercel domain (`https://your-napkin.vercel.app`).
-4. In **Supabase Dashboard → Authentication → URL Configuration**:
+4. Redeploy the Production deployment after adding or changing these variables.
+5. In **Supabase Dashboard → Authentication → URL Configuration**:
    - Set **Site URL** to `https://your-napkin.vercel.app`.
    - Add `https://your-napkin.vercel.app/**` and `https://your-napkin.vercel.app/auth/callback` to **Redirect URLs**.
 

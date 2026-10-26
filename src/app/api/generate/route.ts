@@ -126,12 +126,25 @@ Make every page feel complete with idea-specific content and consistent shared n
     geminiApiKey.length > 8,
   );
   const explicitProvider = process.env.AI_PROVIDER?.toLowerCase().trim();
+  const isVercelDeployment = process.env.VERCEL === "1";
   const useGemini =
+    isVercelDeployment ||
     explicitProvider === "gemini" ||
-    (explicitProvider !== "ollama" && isGeminiConfigured);
+    (explicitProvider !== "ollama" &&
+      (isGeminiConfigured || process.env.NODE_ENV === "production"));
+
+  if (useGemini && !isGeminiConfigured) {
+    const error =
+      isVercelDeployment
+        ? "AI generation is not configured on Vercel. Add GEMINI_API_KEY in Project Settings → Environment Variables for Production, then redeploy."
+        : process.env.NODE_ENV === "production"
+          ? "AI generation is not configured for this deployment. Add GEMINI_API_KEY to the production environment variables, then redeploy."
+        : "GEMINI_API_KEY is missing or invalid. Add it to .env.local, or set AI_PROVIDER=ollama to use local Ollama.";
+    return NextResponse.json({ error }, { status: 503 });
+  }
 
   // 1. Google Gemini API flow (Cloud / Vercel / Local with key)
-  if (useGemini && geminiApiKey) {
+  if (useGemini && isGeminiConfigured && geminiApiKey) {
     // Model candidates: prioritize fast, multimodal vision models
     const candidateModels = [
       process.env.GEMINI_MODEL,

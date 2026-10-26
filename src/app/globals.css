@@ -57,9 +57,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .site-shell { overflow: clip; }
 .scroll-progress { position: fixed; z-index: 101; top: 0; right: 0; left: 0; height: 2px; background: var(--lime); box-shadow: 0 0 12px rgba(219,250,105,.45); transform-origin: left; pointer-events: none; }
-.back-to-top { position: fixed; z-index: 80; right: 24px; bottom: 24px; display: inline-flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid rgba(219,250,105,.34); border-radius: 999px; background: rgba(29,30,24,.92); color: var(--lime); box-shadow: 0 8px 28px rgba(0,0,0,.25); font-size: 11px; font-weight: 700; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s ease, transform .2s ease, background .2s ease; }
+.back-to-top { position: fixed; z-index: 80; right: 24px; bottom: 24px; display: inline-flex; width: 46px; height: 46px; align-items: center; justify-content: flex-start; gap: 0; padding: 0 14px; overflow: hidden; border: 1px solid rgba(219,250,105,.34); border-radius: 999px; background: rgba(29,30,24,.92); color: var(--lime); box-shadow: 0 8px 28px rgba(0,0,0,.25); font-size: 11px; font-weight: 700; opacity: 0; pointer-events: none; transform: translateY(8px); transition: width .24s cubic-bezier(.2,.8,.2,1), opacity .2s ease, transform .2s ease, background .2s ease; }
 .back-to-top.is-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
-.back-to-top:hover { background: var(--panel-raised); }
+.back-to-top span { width: 0; overflow: hidden; opacity: 0; white-space: nowrap; transition: width .24s cubic-bezier(.2,.8,.2,1), opacity .16s ease; }
+.back-to-top:hover, .back-to-top:focus-visible { width: 142px; background: var(--panel-raised); }
+.back-to-top:hover span, .back-to-top:focus-visible span { width: 82px; margin-left: 9px; opacity: 1; }
 .section-wrap { width: min(1180px, calc(100% - 80px)); margin-inline: auto; }
 .site-header {
   position: sticky;
@@ -1186,10 +1188,24 @@ html[data-theme="light"] .magnetic-word i { color: #708b1b; }
   .pin-sections { height: 340vh; padding-block: 0; }
   .pin-sticky { position: sticky; top: 0; grid-template-columns: 1fr 1fr; height: 100vh; height: 100svh; min-height: 560px; padding-block: 30px; overflow: hidden; }
   .pin-depth-scene { position: absolute; z-index: 0; inset: 0; display: block; overflow: hidden; background-image: radial-gradient(rgba(242,241,233,.16) .7px, transparent .7px); background-position: center; background-size: 36px 36px; mask-image: radial-gradient(ellipse at center, black 15%, transparent 76%); pointer-events: none; }
-  .pin-panel { position: absolute; top: 50%; width: min(40vw, 500px); min-height: 280px; align-content: center; margin: 0; padding: 42px 38px; translate: 0 -50%; }
-  .pin-panel-left { left: 7%; }
-  .pin-panel-right { right: 7%; }
+  .pin-panel { position: absolute; top: 50%; width: min(43vw, 620px); min-height: clamp(330px, 42vh, 520px); align-content: center; margin: 0; padding: clamp(42px, 5vw, 76px); translate: 0 -50%; }
+  .pin-panel h3 { font-size: clamp(42px, 5.2vw, 68px); }
+  .pin-panel p { max-width: 500px; font-size: clamp(14px, 1.2vw, 17px); }
+  .pin-panel-left { left: 4.5%; }
+  .pin-panel-right { right: 4.5%; }
+  .pin-panel-icon { width: 64px; height: 64px; }
   .pin-side-art { display: grid; }
+  .pin-side-art-left { left: 4.5%; }
+  .pin-side-art-right { right: 4.5%; }
+  .pin-side-art { width: min(39vw, 560px); }
+  .pin-side-art-paper { min-height: clamp(330px, 42vh, 520px); grid-template-columns: auto 1fr; gap: clamp(18px, 2vw, 30px); padding: clamp(28px, 3.6vw, 56px); border-radius: 24px; }
+  .pin-side-art-icon { width: 76px; height: 76px; border-radius: 20px; }
+  .pin-side-art-icon svg { width: 28px; height: 28px; }
+  .pin-side-art-paper strong { font-size: clamp(14px, 1.4vw, 18px); }
+  .pin-side-art-stamp { right: 24px; bottom: 22px; font-size: 10px; }
+  .pin-side-art-lines i { height: 7px; }
+  .pin-side-art-lines i:nth-child(2) { width: min(180px, 23vw); }
+  .pin-side-art-lines i:nth-child(3) { width: min(130px, 17vw); }
   .pin-progress { position: absolute; bottom: 34px; left: 50%; display: block; width: min(280px, 60%); height: 3px; margin-inline: auto; transform: translateX(-50%); border-radius: 99px; background: rgba(244,244,224,.09); overflow: hidden; }
 }
 

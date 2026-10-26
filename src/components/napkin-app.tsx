@@ -1212,13 +1212,15 @@ export function NapkinApp() {
     <main className="site-shell" id="top">
       <motion.div aria-hidden="true" className="scroll-progress" style={{ scaleX: scrollYProgress }} />
       <button
+        aria-label="Back to top"
         aria-hidden={!showBackToTop}
         className={`back-to-top${showBackToTop ? " is-visible" : ""}`}
         onClick={() => window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" })}
         tabIndex={showBackToTop ? 0 : -1}
         type="button"
       >
-        <ArrowUp aria-hidden="true" size={15} /> Back to top
+        <ArrowUp aria-hidden="true" size={15} />
+        <span>Back to top</span>
       </button>
       <header className="site-header">
         <div className="header-inner">

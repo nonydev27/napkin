@@ -75,7 +75,7 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
 
   // 1. Google Gemini API flow
   if (useGemini && geminiApiKey) {
-    const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const geminiModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`;
 
     try {

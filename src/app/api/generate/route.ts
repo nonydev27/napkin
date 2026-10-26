@@ -56,11 +56,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const designPrompt = `${image ? "Turn this hand-drawn UI sketch" : "Create a UI from this description"} into one polished, responsive, self-contained HTML document.
-Canvas target: ${width}x${height}px. ${prompt ? `Design direction: ${prompt}` : ""}
-Return only HTML, with all CSS in a style tag and any small interactions in inline JavaScript.
-Do not load remote scripts, stylesheets, fonts, or images. Do not include markdown fences.
-Make the design visually complete, accessible, mobile responsive, and faithful to the sketch.`;
+  const designPrompt = `Build one polished, mobile-friendly UI for a ${width}x${height}px canvas.
+${image ? "Use the attached sketch as the layout reference." : `Idea: ${prompt}`}
+Return only a compact, complete HTML5 document with <!doctype html>, <html>, <head>, <body>, and closing tags. Put CSS in one <style> tag. No JavaScript, external assets, markdown, or explanations. Keep the design focused and the code under about 2,000 tokens.`;
 
   const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
   const isGeminiConfigured = Boolean(
@@ -75,7 +73,7 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
 
   // 1. Google Gemini API flow
   if (useGemini && geminiApiKey) {
-    const geminiModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+    const geminiModel = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`;
 
     try {
@@ -97,11 +95,12 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(45_000),
         body: JSON.stringify({
           contents: [{ parts }],
           generationConfig: {
             temperature: 0.25,
+            maxOutputTokens: 8192,
           },
         }),
       });
@@ -133,14 +132,16 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
 
       const result = (await response.json()) as {
         candidates?: Array<{
+          finishReason?: string;
           content?: {
             parts?: Array<{ text?: string }>;
           };
         }>;
       };
 
+      const candidate = result.candidates?.[0];
       const rawContent =
-        result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        candidate?.content?.parts?.map((part) => part.text || "").join("\n").trim() || "";
 
       const html = rawContent
         .trim()
@@ -149,7 +150,12 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
 
       if (!html.toLowerCase().includes("<html") || !html.toLowerCase().includes("</html>")) {
         return NextResponse.json(
-          { error: "The model returned incomplete HTML. Try generating again." },
+          {
+            error:
+              candidate?.finishReason === "MAX_TOKENS"
+                ? "Gemini reached its output limit before finishing the page. Try a shorter description."
+                : "Gemini did not return a complete HTML page. Try a shorter description.",
+          },
           { status: 502 },
         );
       }
@@ -158,7 +164,7 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
     } catch (error) {
       if (error instanceof Error && error.name === "TimeoutError") {
         return NextResponse.json(
-          { error: "Gemini generation took too long. Try again with a simpler prompt." },
+          { error: "Gemini did not respond within 45 seconds. Try a shorter prompt or retry." },
           { status: 504 },
         );
       }
@@ -175,7 +181,7 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
   const ollamaBaseUrl = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434")
     .trim()
     .replace(/\/+$/, "");
-  const model = process.env.GEMMA_MODEL || "gemma4:e4b";
+  const model = process.env.GEMMA_MODEL || "gemma3n:e2b";
 
   try {
     const userMessage: {
@@ -255,7 +261,7 @@ Make the design visually complete, accessible, mobile responsive, and faithful t
     return NextResponse.json(
       {
         error:
-          "Could not reach Ollama at 127.0.0.1:11434. Start Ollama (`ollama run gemma4:e4b`) or configure GEMINI_API_KEY in .env.local.",
+          "Could not reach Ollama at 127.0.0.1:11434. Start Ollama (`ollama run gemma3n:e2b`) or configure GEMINI_API_KEY in .env.local.",
       },
       { status: 503 },
     );

@@ -9,7 +9,7 @@
 Napkin is an open-source developer tool that converts hand-drawn UI sketches into fully functional, responsive HTML & CSS in seconds. Built by **Felix & Nonydev** for **Hacktoberfest Hack Day Kumasi 2026**.
 
 ## ✨ Features
-- **Sketch-to-UI Engine:** Multimodal vision AI powered by Google Gemini API (`gemini-3.8-flash`) or free local Gemma 4 via Ollama.
+- **Sketch-to-UI Engine:** Multimodal vision AI powered by low-latency Google Gemini API (`gemini-3.5-flash-lite`) or free local Gemma 4 via Ollama.
 - **Glassmorphism & Parallax:** A visually stunning, scroll-linked GenZ landing page using Framer Motion.
 - **Live Code Editor:** Tweak the generated UI in real-time with an embedded Monaco editor and live debounced sandbox preview.
 - **Device Targeting:** Select custom dimensions (Mobile, Tablet, Desktop, or Custom) before generating.
@@ -21,7 +21,7 @@ Napkin is an open-source developer tool that converts hand-drawn UI sketches int
 - **Frontend:** Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS v4
 - **Animations:** Framer Motion
 - **Backend & Auth:** Supabase (PostgreSQL, Auth, RLS)
-- **AI / LLM:** Google Gemini API (`gemini-3.8-flash`) & Local Ollama (`gemma4:e4b`)
+- **AI / LLM:** Google Gemini API (`gemini-3.5-flash-lite`) & Local Ollama (`gemma3n:e2b`)
 - **Live Editor:** `@monaco-editor/react`
 
 ---
@@ -45,11 +45,11 @@ Open [http://localhost:3000](http://localhost:3000).
 ```dotenv
 # Option 1: Free local Ollama with Gemma 4 (default)
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-GEMMA_MODEL=gemma4:e4b
+GEMMA_MODEL=gemma3n:e2b
 
 # Option 2: Google Gemini API (recommended for cloud/Vercel)
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 
 # Supabase (optional, for accounts, private saving & public shares)
 NEXT_PUBLIC_SUPABASE_URL=

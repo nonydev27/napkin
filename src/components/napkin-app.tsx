@@ -420,7 +420,12 @@ export function NapkinApp() {
       if (window.innerWidth < 760) setShowPreview(true);
       workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Generation failed. Please try again.");
+      const errorMessage = cause instanceof Error ? cause.message : "Generation failed. Please try again.";
+      setError(
+        errorMessage.includes("Gemini did not respond within")
+          ? `${errorMessage} Your current draft is unchanged.`
+          : errorMessage,
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -969,7 +974,11 @@ export function NapkinApp() {
               <p className="privacy-note"><LockKeyhole size={12} /> Your sketch is processed securely and not stored by Napkin.</p>
             </aside>
 
-            <section aria-label="Preview and generated code" className="editor-area">
+            <section
+              aria-busy={isGenerating}
+              aria-label="Preview and generated code"
+              className="editor-area"
+            >
               {generated ? (
                 <>
                   <div className="editor-toolbar">
@@ -1019,20 +1028,65 @@ export function NapkinApp() {
                   <div className="editor-footer"><span><span className="preview-live-dot" /> Your edits show up in the preview as you type.</span><button onClick={() => requestAction("assets")}><ArrowDownToLine size={13} /> Export assets</button></div>
                 </>
               ) : (
-                <div className="empty-editor">
+                <div aria-busy={isGenerating} className={isGenerating ? "empty-editor is-generating" : "empty-editor"}>
                   <div className="empty-editor-grid" />
-                  <div className="empty-editor-orb">✳</div>
-                  <span className="empty-badge"><Code2 size={13} /> YOUR LIVE CANVAS</span>
-                  <h3>Your idea goes<br /><span>here.</span></h3>
-                  <p>Once you add a sketch, this space turns into your own little build studio.</p>
-                  <div className="empty-preview-window">
-                    <div className="empty-window-top"><i /><i /><i /><span>your-next-big-idea.html</span></div>
-                    <div className="empty-window-content">
-                      <span className="empty-line line-short" /><span className="empty-line line-long" /><span className="empty-line line-medium" />
-                      <span className="empty-line line-button" />
-                    </div>
-                  </div>
-                  <span className="empty-editor-caption"><Sparkles size={13} /> NO BLANK PAGE ENERGY</span>
+                  <AnimatePresence mode="wait" initial={false}>
+                    {isGenerating ? (
+                      <motion.div
+                        animate={{ opacity: 1, y: 0 }}
+                        aria-live="polite"
+                        className="empty-editor-content generation-content"
+                        exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+                        initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                        key="generating"
+                        role="status"
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                      >
+                        <span className="empty-badge generation-badge"><Sparkles size={13} /> DESIGN IN PROGRESS</span>
+                        <h3>Putting your idea<br /><span>on the page.</span></h3>
+                        <p>Building a responsive first draft. Your canvas is taking shape.</p>
+                        <div aria-hidden="true" className="generation-mobile-preview">
+                          <div className="generation-preview-header">
+                            <span className="generation-preview-mark">✳</span>
+                            <span className="generation-preview-brand" />
+                            <span className="generation-preview-menu"><i /><i /><i /></span>
+                          </div>
+                          <div className="generation-preview-body">
+                            <span className="generation-preview-label" />
+                            <div className="generation-preview-feature">
+                              <div className="generation-preview-art"><span /></div>
+                              <div className="generation-preview-lines"><i /><i /><i /></div>
+                            </div>
+                            <div className="generation-preview-item"><i /><span><b /><b /></span></div>
+                            <div className="generation-preview-item"><i /><span><b /><b /></span></div>
+                          </div>
+                        </div>
+                        <span aria-hidden="true" className="generation-dots"><i /><i /><i /></span>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        animate={{ opacity: 1, y: 0 }}
+                        className="empty-editor-content"
+                        exit={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
+                        initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
+                        key="empty"
+                        transition={{ duration: 0.2 }}
+                      >
+                        <div className="empty-editor-orb">✳</div>
+                        <span className="empty-badge"><Code2 size={13} /> YOUR LIVE CANVAS</span>
+                        <h3>Your idea goes<br /><span>here.</span></h3>
+                        <p>Once you add a sketch, this space turns into your own little build studio.</p>
+                        <div className="empty-preview-window">
+                          <div className="empty-window-top"><i /><i /><i /><span>your-next-big-idea.html</span></div>
+                          <div className="empty-window-content">
+                            <span className="empty-line line-short" /><span className="empty-line line-long" /><span className="empty-line line-medium" />
+                            <span className="empty-line line-button" />
+                          </div>
+                        </div>
+                        <span className="empty-editor-caption"><Sparkles size={13} /> NO BLANK PAGE ENERGY</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
             </section>

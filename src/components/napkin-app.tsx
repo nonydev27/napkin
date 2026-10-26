@@ -15,6 +15,7 @@ import {
   ArrowDown,
   ArrowDownToLine,
   ArrowRight,
+  ArrowUp,
   ArrowUpRight,
   Check,
   ChevronDown,
@@ -543,6 +544,7 @@ function ScrollPinSections() {
             key={panel.eyebrow}
             progress={scrollYProgress}
             reduced={!!prefersReducedMotion}
+            side={index % 2 === 0 ? "left" : "right"}
             start={start}
             title={panel.title}
             total={panels.length}
@@ -555,25 +557,44 @@ function ScrollPinSections() {
   );
 }
 
-function PinnedPanel({ copy, end, eyebrow, icon, progress, reduced, start, title, total }: {
+function PinnedPanel({ copy, end, eyebrow, icon, progress, reduced, side, start, title, total }: {
   copy: string; end: number; eyebrow: string; icon: React.ReactNode; progress: MotionValue<number>;
-  reduced: boolean; start: number; title: string; total: number;
+  reduced: boolean; side: "left" | "right"; start: number; title: string; total: number;
 }) {
   const slot = 1 / total;
   const opacity = useTransform(progress, [start, start + slot * 0.3, end - slot * 0.3, end], [0, 1, 1, 0]);
+  const artOpacity = useTransform(progress, [start, start + slot * 0.3, end - slot * 0.3, end], [0, 1, 1, 0]);
   const scale = useTransform(progress, [start, start + slot * 0.3, end - slot * 0.3, end], [0.9, 1, 1, 0.94]);
   const y = useTransform(progress, [start, start + slot * 0.3, end - slot * 0.3, end], [40, 0, 0, -30]);
+  const x = useTransform(progress, [start, start + slot * 0.3, end - slot * 0.3, end], [side === "left" ? -36 : 36, 0, 0, side === "left" ? -24 : 24]);
+  const stationarySide = side === "left" ? "right" : "left";
 
   return (
-    <motion.div
-      className="pin-panel"
-      style={reduced ? { opacity: 1 } : { opacity, scale, y }}
-    >
-      <span className="pin-panel-eyebrow"><span className="eyebrow-star">✳</span> {eyebrow}</span>
-      <span className="pin-panel-icon">{icon}</span>
-      <h3>{title}</h3>
-      <p>{copy}</p>
-    </motion.div>
+    <>
+      <motion.div
+        aria-hidden="true"
+        className={`pin-side-art pin-side-art-${stationarySide}`}
+        style={reduced ? { opacity: 0 } : { opacity: artOpacity }}
+      >
+        <span className="pin-side-art-label">STAYS IN FRAME <span>↗</span></span>
+        <div className="pin-side-art-paper">
+          <span className="pin-side-art-icon">{icon}</span>
+          <span className="pin-side-art-lines"><i /><i /><i /></span>
+          <strong>{eyebrow.replace("PANEL ", "NAPKIN / ")}</strong>
+          <span className="pin-side-art-stamp">IDEA<br />IN MOTION</span>
+        </div>
+        <span className="pin-side-art-caption">A little sketch goes a long way.</span>
+      </motion.div>
+      <motion.div
+        className={`pin-panel pin-panel-${side}`}
+        style={reduced ? { opacity: 1 } : { opacity, scale, x, y }}
+      >
+        <span className="pin-panel-eyebrow"><span className="eyebrow-star">✳</span> {eyebrow}</span>
+        <span className="pin-panel-icon">{icon}</span>
+        <h3>{title}</h3>
+        <p>{copy}</p>
+      </motion.div>
+    </>
   );
 }
 
@@ -647,6 +668,8 @@ export function NapkinApp() {
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<WorkspaceAction | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const showBackToTopRef = useRef(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [preset, setPreset] = useState<CanvasPreset>("desktop");
   const [canvasSize, setCanvasSize] = useState<CanvasSize>(PRESETS.desktop);
@@ -674,6 +697,18 @@ export function NapkinApp() {
   const resumeOAuthAction = useRef<(action: WorkspaceAction, currentCode: string) => void>(() => {});
 
   const generated = code.length > 0;
+  useEffect(() => {
+    const updateVisibility = () => {
+      const visible = window.scrollY > 640;
+      if (visible === showBackToTopRef.current) return;
+      showBackToTopRef.current = visible;
+      setShowBackToTop(visible);
+    };
+    updateVisibility();
+    window.addEventListener("scroll", updateVisibility, { passive: true });
+    return () => window.removeEventListener("scroll", updateVisibility);
+  }, []);
+
   useEffect(() => {
     const panel = previewPanelRef.current;
     if (!panel) return;
@@ -1176,6 +1211,15 @@ export function NapkinApp() {
   return (
     <main className="site-shell" id="top">
       <motion.div aria-hidden="true" className="scroll-progress" style={{ scaleX: scrollYProgress }} />
+      <button
+        aria-hidden={!showBackToTop}
+        className={`back-to-top${showBackToTop ? " is-visible" : ""}`}
+        onClick={() => window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" })}
+        tabIndex={showBackToTop ? 0 : -1}
+        type="button"
+      >
+        <ArrowUp aria-hidden="true" size={15} /> Back to top
+      </button>
       <header className="site-header">
         <div className="header-inner">
           <Brand />

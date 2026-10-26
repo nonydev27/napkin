@@ -19,12 +19,13 @@ import {
   ChevronDown,
   CircleHelp,
   Code2,
-  Copy,
   ExternalLink,
   ImagePlus,
   LoaderCircle,
   LockKeyhole,
   Menu,
+  Maximize,
+  Minimize2,
   Monitor,
   MousePointer2,
   PanelTop,
@@ -37,12 +38,14 @@ import {
   WandSparkles,
   X,
   Trash2,
+  Eraser,
+  Maximize2,
+  Minus,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -68,6 +71,48 @@ const PRESETS: Record<Exclude<CanvasPreset, "custom">, CanvasSize> = {
   tablet: { width: 768, height: 1024 },
   desktop: { width: 1440, height: 960 },
 };
+
+const BRUSH_COLORS = [
+  { label: "Ink Black", value: "#202119" },
+  { label: "Blueprint Blue", value: "#2563eb" },
+  { label: "Napkin Lime", value: "#84cc16" },
+  { label: "Marker Red", value: "#ef4444" },
+  { label: "Purple", value: "#8b5cf6" },
+];
+
+const BRUSH_SIZES = [
+  { label: "Fine", size: 2 },
+  { label: "Medium", size: 4 },
+  { label: "Thick", size: 8 },
+];
+
+const INSPIRATION_CHIPS = [
+  {
+    label: "☕ Coffee Shop",
+    prompt: "A warm artisanal coffee shop landing page with roast story, espresso bar menu, and reservation card",
+    preset: "desktop" as const,
+  },
+  {
+    label: "💳 FinTech Mobile",
+    prompt: "A sleek neobank mobile app with card balance, quick send money buttons, and recent transactions",
+    preset: "mobile" as const,
+  },
+  {
+    label: "🚀 SaaS Analytics",
+    prompt: "A clean modern developer SaaS dashboard with live revenue metrics, API latency chart, and team members",
+    preset: "desktop" as const,
+  },
+  {
+    label: "🛍️ Minimal Store",
+    prompt: "An editorial luxury streetwear eCommerce product showcase with oversized typography, photo carousel, and size selector",
+    preset: "mobile" as const,
+  },
+  {
+    label: "🎨 Portfolio Grid",
+    prompt: "A creative art director portfolio with interactive masonry project showcase, about drawer, and contact trigger",
+    preset: "desktop" as const,
+  },
+];
 
 const TOUR_STEPS = [
   {
@@ -146,8 +191,37 @@ function ScrollReveal({
   );
 }
 
+function FaqItem({ answer, index, question }: { answer: string; index: number; question: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <motion.div
+      className={`faq-item ${open ? "open" : ""}`}
+      initial={{ opacity: 0, y: 16 }}
+      transition={{ delay: index * 0.05, duration: 0.4 }}
+      viewport={{ once: true, amount: 0.4 }}
+      whileInView={{ opacity: 1, y: 0 }}
+    >
+      <button
+        aria-expanded={open}
+        className="faq-question"
+        onClick={() => setOpen(!open)}
+        type="button"
+      >
+        <span className="faq-index">{String(index + 1).padStart(2, "0")}</span>
+        <span>{question}</span>
+        <span className="faq-toggle"><Minus size={14} /></span>
+      </button>
+      <div className="faq-answer-wrap">
+        <p className="faq-answer">{answer}</p>
+      </div>
+    </motion.div>
+  );
+}
+
 export function NapkinApp() {
   const workspaceRef = useRef<HTMLElement>(null);
+  const previewPanelRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
   const undoStack = useRef<ImageData[]>([]);
@@ -169,24 +243,46 @@ export function NapkinApp() {
   const [prompt, setPrompt] = useState("");
   const [code, setCode] = useState("");
   const [previewCode, setPreviewCode] = useState("");
+  const [previewScale, setPreviewScale] = useState(1);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [sketchMode, setSketchMode] = useState<"upload" | "draw">("upload");
   const [hasDrawing, setHasDrawing] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [brushColor, setBrushColor] = useState("#202119");
+  const [brushWidth, setBrushWidth] = useState(4);
+  const [isEraser, setIsEraser] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(true);
+  const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
   const oauthResume = useRef(false);
   const resumeOAuthAction = useRef<(action: WorkspaceAction, currentCode: string) => void>(() => {});
 
   const generated = code.length > 0;
-  const aspectRatio = useMemo(
-    () => canvasSize.width / canvasSize.height,
-    [canvasSize.height, canvasSize.width],
-  );
+  useEffect(() => {
+    const panel = previewPanelRef.current;
+    if (!panel) return;
+
+    const updateScale = () => {
+      const availableWidth = Math.max(0, panel.clientWidth - 56);
+      const deviceChromeHeight = preset === "mobile" ? 58 : preset === "desktop" ? 38 : 28;
+      const availableHeight = Math.max(0, panel.clientHeight - deviceChromeHeight - 110);
+      const scale = Math.min(
+        1,
+        availableWidth / canvasSize.width,
+        availableHeight / canvasSize.height,
+      );
+      setPreviewScale(Number.isFinite(scale) ? scale : 1);
+    };
+
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(panel);
+    updateScale();
+    return () => observer.disconnect();
+  }, [canvasSize.height, canvasSize.width, generated, preset]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -310,8 +406,8 @@ export function NapkinApp() {
     context.beginPath();
     context.moveTo(point.x, point.y);
     context.lineTo(point.x + 0.1, point.y + 0.1);
-    context.strokeStyle = "#202119";
-    context.lineWidth = 4;
+    context.strokeStyle = isEraser ? "#ffffff" : brushColor;
+    context.lineWidth = isEraser ? brushWidth * 3.5 : brushWidth;
     context.lineCap = "round";
     context.lineJoin = "round";
     context.stroke();
@@ -325,6 +421,10 @@ export function NapkinApp() {
     if (!isDrawing) return;
     const context = event.currentTarget.getContext("2d");
     if (!context) return;
+    context.strokeStyle = isEraser ? "#ffffff" : brushColor;
+    context.lineWidth = isEraser ? brushWidth * 3.5 : brushWidth;
+    context.lineCap = "round";
+    context.lineJoin = "round";
     const point = drawingPoint(event);
     context.lineTo(point.x, point.y);
     context.stroke();
@@ -589,9 +689,77 @@ export function NapkinApp() {
     workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function toggleFullscreenPreview() {
+    if (!previewSrcDoc) return;
+    setIsFullscreenPreview((open) => !open);
+  }
+
+  useEffect(() => {
+    if (!isFullscreenPreview) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFullscreenPreview(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isFullscreenPreview]);
+
+  function openFullscreenPreview() {
+    if (!previewSrcDoc) return;
+    const win = window.open("", "_blank");
+    if (win) {
+      const document = win.document;
+      document.title = "Napkin — Full Preview";
+      document.documentElement.style.minHeight = "100%";
+      document.body.style.minHeight = "100vh";
+      document.body.style.margin = "0";
+      document.body.style.display = "grid";
+      document.body.style.placeItems = "center";
+      document.body.style.background = "#20211b";
+      document.body.style.overflow = "auto";
+
+      const frame = document.createElement("iframe");
+      frame.setAttribute("sandbox", "allow-scripts");
+      frame.srcdoc = previewSrcDoc;
+      frame.title = `Generated UI preview, ${canvasSize.width} by ${canvasSize.height} pixels`;
+      frame.width = String(canvasSize.width);
+      frame.height = String(canvasSize.height);
+      frame.style.cssText = `display:block;max-width:none;border:0;background:#fff;width:${canvasSize.width}px;height:${canvasSize.height}px`;
+      document.body.appendChild(frame);
+    } else {
+      setMessage("Pop-up blocked. Please allow pop-ups to open full-screen preview.");
+    }
+  }
+
+  // ⌘/Ctrl + Enter generates from anywhere in the workspace.
+
   const previewSrcDoc = (previewCode || code)
     ? makePreviewDocument(previewCode || code)
     : "";
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        if (!isGenerating && (file || prompt.trim())) void generate();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const [copied, setCopied] = useState(false);
+  function copyCode() {
+    void navigator.clipboard.writeText(code).then(() => {
+      setMessage("Code copied to your clipboard.");
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    });
+  }
 
   return (
     <main className="site-shell" id="top">
@@ -872,10 +1040,56 @@ export function NapkinApp() {
                 ) : (
                   <div className="drawing-pad">
                     <div className="drawing-toolbar">
-                      <span><span className={hasDrawing ? "drawing-status ready" : "drawing-status"} />{hasDrawing ? "Sketch ready" : "Draw your idea"}</span>
-                      <div>
-                        <button aria-label="Undo last stroke" disabled={!hasDrawing} onClick={undoDrawing} type="button"><Undo2 size={14} /> Undo</button>
+                      <div className="drawing-status-group">
+                        <span className={hasDrawing ? "drawing-status ready" : "drawing-status"} />
+                        <span>{hasDrawing ? "Sketch ready" : "Draw your idea"}</span>
+                      </div>
+                      <div className="drawing-actions">
+                        <button aria-label="Undo last stroke" disabled={!hasDrawing} onClick={undoDrawing} type="button"><Undo2 size={13} /> Undo</button>
                         <button aria-label="Clear sketch" disabled={!hasDrawing} onClick={clearDrawing} type="button"><Trash2 size={13} /> Clear</button>
+                      </div>
+                    </div>
+                    <div className="drawing-controls">
+                      <div aria-label="Brush color" className="brush-colors" role="radiogroup">
+                        {BRUSH_COLORS.map((c) => (
+                          <button
+                            aria-checked={!isEraser && brushColor === c.value}
+                            className={`color-swatch ${!isEraser && brushColor === c.value ? "selected" : ""}`}
+                            key={c.value}
+                            onClick={() => {
+                              setBrushColor(c.value);
+                              setIsEraser(false);
+                            }}
+                            role="radio"
+                            style={{ backgroundColor: c.value }}
+                            title={c.label}
+                            type="button"
+                          />
+                        ))}
+                        <button
+                          aria-pressed={isEraser}
+                          className={`eraser-button ${isEraser ? "active" : ""}`}
+                          onClick={() => setIsEraser(!isEraser)}
+                          title="Eraser tool"
+                          type="button"
+                        >
+                          <Eraser size={12} />
+                        </button>
+                      </div>
+                      <div aria-label="Stroke width" className="brush-sizes" role="radiogroup">
+                        {BRUSH_SIZES.map((s) => (
+                          <button
+                            aria-checked={brushWidth === s.size}
+                            className={`brush-size-btn ${brushWidth === s.size ? "selected" : ""}`}
+                            key={s.size}
+                            onClick={() => setBrushWidth(s.size)}
+                            role="radio"
+                            title={`${s.label} stroke (${s.size}px)`}
+                            type="button"
+                          >
+                            <span style={{ width: s.size + 3, height: s.size + 3 }} />
+                          </button>
+                        ))}
                       </div>
                     </div>
                     <canvas
@@ -891,7 +1105,7 @@ export function NapkinApp() {
                       tabIndex={0}
                       width={640}
                     />
-                    <p className="drawing-hint">Mouse, finger or stylus · rough is perfect</p>
+                    <p className="drawing-hint">Mouse, finger or stylus · multi-color sketch</p>
                   </div>
                 )}
               </div>
@@ -933,6 +1147,30 @@ export function NapkinApp() {
                 )}
               </AnimatePresence>
               <div className="dimension-preview"><span>CANVAS</span><strong>{canvasSize.width} × {canvasSize.height}<small> px</small></strong></div>
+
+              <div className="inspiration-container">
+                <div className="inspiration-header">
+                  <span><Sparkles size={11} /> Quick inspiration</span>
+                  <small>1-click ideas</small>
+                </div>
+                <div className="inspiration-chips">
+                  {INSPIRATION_CHIPS.map((chip) => (
+                    <button
+                      className="inspiration-chip"
+                      key={chip.label}
+                      onClick={() => {
+                        setPrompt(chip.prompt);
+                        selectPreset(chip.preset);
+                        setMessage(`Loaded prompt: ${chip.label}`);
+                      }}
+                      title={chip.prompt}
+                      type="button"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div className="prompt-field">
                 <label htmlFor="design-direction">
@@ -988,19 +1226,73 @@ export function NapkinApp() {
                     </div>
                     <div className="editor-actions">
                       <span><i /> LIVE</span>
-                      <button aria-label="Copy code" className="icon-button" onClick={() => void navigator.clipboard.writeText(code).then(() => setMessage("Code copied to your clipboard."))}><Copy size={14} /></button>
+                      <button aria-label="Toggle full-screen preview" className="icon-button" onClick={toggleFullscreenPreview} title="Full-screen preview" type="button"><Maximize size={14} /></button>
+                      <button aria-label="Copy code" className={`icon-button ${copied ? "copied" : ""}`} onClick={copyCode} title="Copy code" type="button"><Check size={14} /></button>
                     </div>
                   </div>
                   <div className="editor-panels">
-                    <div className={`preview-panel ${showPreview ? "panel-visible" : "panel-hidden"}`}>
-                      <div className="preview-canvas" style={{ aspectRatio }}>
-                        <iframe
-                          sandbox="allow-scripts"
-                          srcDoc={previewSrcDoc}
-                          title="Generated UI live preview"
-                        />
+                    <div
+                      aria-label="Generated UI preview"
+                      className={`preview-panel ${showPreview ? "panel-visible" : "panel-hidden"}`}
+                      ref={previewPanelRef}
+                    >
+                      <div className={`device-mockup-frame device-${preset}`}>
+                        {preset === "mobile" && (
+                          <div className="device-island">
+                            <span className="island-lens" />
+                          </div>
+                        )}
+                        {preset === "desktop" && (
+                          <div className="browser-chrome">
+                            <div className="browser-dots">
+                              <span /><span /><span />
+                            </div>
+                            <div className="browser-url-pill">
+                              <LockKeyhole size={9} />
+                              <span>preview.napkin.build/draft</span>
+                            </div>
+                          </div>
+                        )}
+                        {preset === "tablet" && (
+                          <div className="tablet-camera" />
+                        )}
+                        <div
+                          className="preview-canvas"
+                          style={{
+                            width: Math.round(canvasSize.width * previewScale),
+                            height: Math.round(canvasSize.height * previewScale),
+                          }}
+                        >
+                          <iframe
+                            height={canvasSize.height}
+                            sandbox="allow-scripts"
+                            srcDoc={previewSrcDoc}
+                            style={{
+                              width: canvasSize.width,
+                              height: canvasSize.height,
+                              transform: `scale(${previewScale})`,
+                              transformOrigin: "top left",
+                            }}
+                            title={`Generated UI preview at ${canvasSize.width} by ${canvasSize.height} pixels. Scroll inside to view the rest of the page.`}
+                            width={canvasSize.width}
+                          />
+                        </div>
+                        {preset === "mobile" && <div className="device-home-bar" />}
                       </div>
-                      <div className="preview-meta"><span><span className="preview-live-dot" /> LIVE PREVIEW</span><span>{canvasSize.width} × {canvasSize.height}</span></div>
+                      <div className="preview-meta">
+                        <span><span className="preview-live-dot" /> LIVE PREVIEW · {preset.toUpperCase()}</span>
+                        <div className="preview-meta-actions">
+                          <span>{canvasSize.width} × {canvasSize.height} · {Math.round(previewScale * 100)}% fit · scroll inside for full page</span>
+                          <button
+                            className="fullscreen-btn"
+                            onClick={openFullscreenPreview}
+                            title="Pop out into new window"
+                            type="button"
+                          >
+                            <Maximize2 size={11} /> Pop out
+                          </button>
+                        </div>
+                      </div>
                     </div>
                     <div className={`code-panel ${showPreview ? "panel-hidden" : "panel-visible"}`}>
                       <div className="code-title"><span className="html-icon">&lt;/&gt;</span> index.html <span className="code-language">HTML</span></div>
@@ -1102,6 +1394,53 @@ export function NapkinApp() {
         <div className="workspace-footnote section-wrap"><span>✳</span> An idea is a beginning, not a final answer. This is yours to keep changing.</div>
       </section>
 
+      <div aria-hidden="true" className="marquee-band">
+        <div className="marquee-track">
+          {[0, 1].map((copy) => (
+            <div className="marquee-run" key={copy}>
+              {["SKETCH IT ☼", "✳", "DRAW IT ⌘", "✳", "SHIP IT ↗", "✳", "MAKE IT REAL ◆", "✳", "NO MOCKUPS. REAL HTML.", "✳", "IDEAS DON’T WAIT ○", "✳"].map((word, index) => (
+                <span className={word === "✳" ? "marquee-star" : "marquee-word"} key={`${copy}-${index}`}>{word}</span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <section className="stats-section section-wrap">
+        <ScrollReveal className="stats-grid">
+          {[
+            { value: "<8s", label: "from sketch to first draft" },
+            { value: "100%", label: "real HTML you own" },
+            { value: "3", label: "canvas sizes + custom" },
+            { value: "0", label: "design tools required" },
+          ].map((stat) => (
+            <div className="stat-cell" key={stat.label}>
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
+            </div>
+          ))}
+        </ScrollReveal>
+      </section>
+
+      <section className="faq-section section-wrap" id="faq">
+        <ScrollReveal className="faq-heading">
+          <span className="eyebrow"><span className="eyebrow-star">✳</span> QUICK ANSWERS</span>
+          <h2>Good<br /><span>questions.</span></h2>
+        </ScrollReveal>
+        <div className="faq-list">
+          {[
+            { q: "Do I need to know how to code?", a: "Not at all. Sketch it on paper, draw it on screen, or just describe it. Napkin hands you real HTML you can keep tweaking in the built-in editor — or hand straight to a developer." },
+            { q: "What happens to my sketches?", a: "Your sketch is sent securely to generate your draft and never stored by Napkin. If you save a project, only the generated code and canvas size are kept — attached to your account." },
+            { q: "Is the generated code any good?", a: "It’s a real, responsive HTML starting point — not a mockup or a screenshot. Most people tweak fonts, colors and copy right in the editor, then export and ship." },
+            { q: "Can I use it on my phone?", a: "Yes — the whole workspace works on mobile. Snap a photo of a napkin sketch, hit generate, and scroll the result right there. Drawing with your finger works too." },
+            { q: "Is it really free & open source?", a: "Yep. Napkin is MIT licensed and the source is on GitHub. Bring your own AI keys, self-host it, or fork it into your own thing." },
+          ].map((item, index) => (
+            <FaqItem answer={item.a} index={index} key={item.q} question={item.q} />
+          ))
+          }
+        </div>
+      </section>
+
       <motion.section
         className="closer-section"
         initial={prefersReducedMotion ? false : { opacity: 0, y: 24 }}
@@ -1142,6 +1481,36 @@ export function NapkinApp() {
           <a href="#top">BACK TO TOP <ArrowUpRight size={11} /></a>
         </div>
       </footer>
+
+      <AnimatePresence>
+        {isFullscreenPreview && (
+          <motion.div
+            animate={{ opacity: 1 }}
+            aria-modal="true"
+            className="fullscreen-preview-backdrop"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            role="dialog"
+          >
+            <div className="fullscreen-preview-bar">
+              <span className="fullscreen-preview-label"><span className="preview-live-dot" /> FULL SCREEN · {canvasSize.width} × {canvasSize.height}</span>
+              <div className="fullscreen-preview-actions">
+                <button className="fullscreen-exit" onClick={openFullscreenPreview} type="button"><ExternalLink size={13} /> Open in new tab</button>
+                <button className="fullscreen-exit" onClick={() => setIsFullscreenPreview(false)} type="button"><Minimize2 size={13} /> Close <small>Esc</small></button>
+              </div>
+            </div>
+            <div className="fullscreen-preview-stage">
+              <iframe
+                height={canvasSize.height}
+                sandbox="allow-scripts"
+                srcDoc={previewSrcDoc}
+                title="Generated UI full-screen preview. Scroll inside to explore the page."
+                width={canvasSize.width}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {tourStep !== null && (

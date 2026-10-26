@@ -40,6 +40,25 @@ ${code}
     code += "\n</html>";
   }
 
+  if (!/^<!doctype\s+html/i.test(code)) {
+    code = `<!DOCTYPE html>\n${code}`;
+  }
+
+  if (!/<meta\b[^>]*\bname\s*=\s*["']viewport["'][^>]*>/i.test(code)) {
+    const viewportMeta = '<meta name="viewport" content="width=device-width, initial-scale=1">';
+    const headTag = /<head(?:\s[^>]*)?>/i;
+    const htmlTag = /<html(?:\s[^>]*)?>/i;
+
+    if (headTag.test(code)) {
+      code = code.replace(headTag, (opening) => `${opening}\n${viewportMeta}`);
+    } else if (htmlTag.test(code)) {
+      code = code.replace(
+        htmlTag,
+        (opening) => `${opening}\n<head>${viewportMeta}</head>`,
+      );
+    }
+  }
+
   return code;
 }
 
@@ -93,11 +112,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const designPrompt = `Build one polished, modern, responsive UI for a ${width}x${height}px canvas.
-${image ? "Use the attached hand-drawn sketch as the structural and layout reference." : `Design Idea: ${prompt}`}
-Return ONLY a complete, beautiful HTML5 document with <!doctype html>, <html>, <head>, and <body>.
-Include modern styling inside a <style> tag with clean typography, tasteful spacing, colors, and responsive layout.
-No markdown codeblocks, no external scripts, and no explanations. Return pure HTML.`;
+  const designPrompt = `Build a polished, complete, responsive UI for a ${width}x${height}px viewport.
+${image ? "Treat the attached sketch as the source of truth for layout and hierarchy. Recreate every visible region and control; infer unclear details without dropping sections." : `Design idea: ${prompt}`}
+Return only a complete HTML5 document with doctype, html, head, and body tags, including a responsive viewport meta tag. Use semantic sections and inline CSS.
+Build a coherent page with all requested content and a clear visual hierarchy. The requested dimensions are the initial viewport, not a limit on page length. Use a minimum viewport height and natural document flow; allow vertical scrolling and never clip content with fixed heights or hidden body overflow. Keep it accessible and responsive at mobile and desktop widths.
+No markdown fences, external scripts, or explanatory text.`;
 
   const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
   const isGeminiConfigured = Boolean(

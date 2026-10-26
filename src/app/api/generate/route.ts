@@ -112,11 +112,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const designPrompt = `Build a polished, complete, responsive UI for a ${width}x${height}px viewport.
-${image ? "Treat the attached sketch as the source of truth for layout and hierarchy. Recreate every visible region and control; infer unclear details without dropping sections." : `Design idea: ${prompt}`}
-Return only a complete HTML5 document with doctype, html, head, and body tags, including a responsive viewport meta tag. Use semantic sections and inline CSS.
-Build a coherent page with all requested content and a clear visual hierarchy. The requested dimensions are the initial viewport, not a limit on page length. Use a minimum viewport height and natural document flow; allow vertical scrolling and never clip content with fixed heights or hidden body overflow. Keep it accessible and responsive at mobile and desktop widths.
-No markdown fences, external scripts, or explanatory text.`;
+  const designPrompt = `Build a polished, responsive, multi-page ${width}x${height}px website that runs as one self-contained HTML file in a browser preview.
+${image ? "Use the attached sketch as the visual source of truth for the home page; preserve every visible region and extend its style to the other pages." : `Design idea: ${prompt}`}
+Create at least 4 genuinely distinct, fully designed pages: Home plus 3 relevant pages (for example About, Services/Features, and Contact; choose equivalents that fit the idea). Do not make these just sections stacked on one long page.
+Use hash routes such as #/home, #/about, #/services, and #/contact. Each page must be its own <main data-page="home">...</main> element, with all but the active page hidden. The visible desktop/mobile navigation must link to every page. Add a small inline script that reads the hash on load and on hashchange, shows the matching page, and updates the active navigation state. Include working back/forward navigation through normal browser history.
+Return only one complete HTML5 document with doctype, responsive viewport meta tag, semantic markup, and inline CSS/JavaScript. Use no external scripts, markdown fences, or explanations.
+Make every page feel complete with idea-specific content and consistent shared navigation. The site must adapt cleanly from 360px phones through tablets to wide desktop screens: use fluid widths, flexible grids, and CSS media queries; collapse navigation and columns for small screens; avoid fixed-width layouts and horizontal overflow; make controls comfortable for touch. Treat the requested dimensions as the initial preview viewport, not the only supported size or a total page-height limit. Allow natural vertical scrolling; never clip page content with fixed heights or hidden body overflow.`;
 
   const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
   const isGeminiConfigured = Boolean(
@@ -170,7 +171,7 @@ No markdown fences, external scripts, or explanatory text.`;
             contents: [{ parts }],
             generationConfig: {
               temperature: 0.3,
-              maxOutputTokens: 8192,
+              maxOutputTokens: 12288,
             },
           }),
         });

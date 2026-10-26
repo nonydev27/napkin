@@ -1286,10 +1286,10 @@ export function NapkinApp() {
                           <button
                             className="fullscreen-btn"
                             onClick={openFullscreenPreview}
-                            title="Pop out into new window"
+                            title="Open the live preview in a new browser tab"
                             type="button"
                           >
-                            <Maximize2 size={11} /> Pop out
+                            <Maximize2 size={11} /> Open in browser
                           </button>
                         </div>
                       </div>

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import {
+  animate,
   AnimatePresence,
   motion,
   useMotionValue,
@@ -28,6 +29,10 @@ import {
   Minimize2,
   Monitor,
   MousePointer2,
+  Zap,
+  Star,
+  Heart,
+  Rocket,
   PanelTop,
   PenLine,
   Smartphone,
@@ -42,6 +47,7 @@ import {
   Maximize2,
   Minus,
 } from "lucide-react";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -52,7 +58,7 @@ import {
   type DragEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
+  import type { MotionValue } from "framer-motion";
 import { makePreviewDocument } from "@/lib/sandbox";
 import { Brand, GitHubMark } from "@/components/brand";
 import { ThemeSwitch, useTheme } from "@/components/theme-provider";
@@ -216,6 +222,412 @@ function FaqItem({ answer, index, question }: { answer: string; index: number; q
         <p className="faq-answer">{answer}</p>
       </div>
     </motion.div>
+  );
+}
+
+function TiltCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const springX = useSpring(x, { stiffness: 150, damping: 18 });
+  const springY = useSpring(y, { stiffness: 150, damping: 18 });
+  const prefersReducedMotion = useReducedMotion();
+  const rotateX = useTransform(springY, [-0.5, 0.5], [6, -6]);
+  const rotateY = useTransform(springX, [-0.5, 0.5], [-6, 6]);
+
+  if (prefersReducedMotion) return <div className={className}>{children}</div>;
+
+  return (
+    <motion.div
+      className={className}
+      onMouseMove={(event) => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        x.set((event.clientX - bounds.left) / bounds.width - 0.5);
+        y.set((event.clientY - bounds.top) / bounds.height - 0.5);
+      }}
+      onMouseLeave={() => { x.set(0); y.set(0); }}
+      style={{ rotateX, rotateY, transformPerspective: 900 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function AnimatedCounter({ label, suffix, value }: { label: string; suffix?: string; value: number }) {
+  const prefersReducedMotion = useReducedMotion();
+  const shown = useMotionValue(0);
+  const [display, setDisplay] = useState("0");
+  const counterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = counterRef.current;
+    if (!node || prefersReducedMotion) {
+      setDisplay(String(value));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        observer.disconnect();
+        const controls = animate(shown, value, {
+          duration: 1.4,
+          ease: [0.22, 1, 0.36, 1],
+          onUpdate: (latest) => setDisplay(String(Math.round(latest))),
+        });
+        return () => controls.stop();
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [prefersReducedMotion, shown, value]);
+
+  return (
+    <div className="stat-cell" ref={counterRef}>
+      <strong>{display}{suffix}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function FloatingHearts() {
+  const icons = [
+    { left: "7%", size: 16, top: "18%", variant: Heart },
+    { left: "24%", size: 24, top: "62%", variant: Star },
+    { left: "41%", size: 14, top: "32%", variant: Zap },
+    { left: "59%", size: 28, top: "70%", variant: Star },
+    { left: "76%", size: 18, top: "26%", variant: Rocket },
+    { left: "91%", size: 14, top: "55%", variant: Heart },
+  ];
+  const prefersReducedMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll();
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const node = fieldRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver((entries) => setInView(entries[0].isIntersecting), { threshold: 0.2 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div aria-hidden="true" className="float-field" ref={fieldRef}>
+      {icons.map((icon, index) => (
+        <motion.span
+          animate={
+            prefersReducedMotion || !inView
+              ? { opacity: 0.25, y: 0, rotate: 0 }
+              : { opacity: [0.2, 0.8, 0.2], y: [0, -14, 0], rotate: [0, index % 2 ? 18 : -18, 0] }
+          }
+          className="float-icon"
+          key={index}
+          style={{ left: icon.left, top: icon.top }}
+          transition={{ duration: 4.5 + index * 0.6, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <icon.variant size={icon.size} strokeWidth={1.5} />
+        </motion.span>
+      ))}
+      <motion.div
+        className="float-swoosh"
+        style={{ scaleX: scrollYProgress }}
+      />
+    </div>
+  );
+}
+
+function HorizontalScrollRail() {
+  const railRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const update = () => {
+      const total = rail.scrollWidth - rail.clientWidth;
+      setProgress(total > 0 ? rail.scrollLeft / total : 0);
+    };
+    update();
+    rail.addEventListener("scroll", update, { passive: true });
+    return () => rail.removeEventListener("scroll", update);
+  }, []);
+
+  return (
+    <div className="gallery-scroll">
+      <div className="rail-progress"><i style={{ transform: `scaleX(${progress})` }} /></div>
+      <div className="gallery-rail" ref={railRef} tabIndex={0}>
+        {[
+          { icon: <Sparkles size={15} />, label: "COFFEE SHOP", copy: "An artisanal landing page with roast story and reservation card - straight from a napkin doodle.", tone: "lime" },
+          { icon: <Zap size={15} />, label: "FINTECH MOBILE", copy: "A neobank app with card balance, quick-send buttons and transaction list - drawn in the on-screen pad.", tone: "purple" },
+          { icon: <Rocket size={15} />, label: "SAAS ANALYTICS", copy: "A developer dashboard with live revenue metrics and API latency charts - sketched on the train.", tone: "lime" },
+          { icon: <Star size={15} />, label: "MINIMAL STORE", copy: "An editorial streetwear showcase with oversized type and a photo carousel - doodled at 2am.", tone: "purple" },
+          { icon: <Heart size={15} />, label: "PORTFOLIO GRID", copy: "A creative director portfolio with a masonry showcase and contact drawer - napkin no. 041.", tone: "lime" },
+        ].map((item, index) => (
+          <motion.article
+            animate={prefersReducedMotion ? false : { opacity: [0.35, 1, 0.35], x: [0, index % 2 ? 5 : -5, 0] }}
+            className={`gallery-card tone-${item.tone}`}
+            key={item.label}
+            transition={{ duration: 6 + index, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <span className="gallery-card-icon">{item.icon}</span>
+            <strong>{item.label}</strong>
+            <p>{item.copy}</p>
+            <span className="gallery-card-doodle">✳</span>
+          </motion.article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ParallaxBand({ onCta }: { onCta: () => void }) {
+  const bandRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: bandRef, offset: ["start end", "end start"] });
+  const prefersReducedMotion = useReducedMotion();
+  const { theme } = useTheme();
+  const yNear = useTransform(scrollYProgress, [0, 1], [90, -110]);
+  const rotate = useTransform(scrollYProgress, [0, 1], [-4, 5]);
+
+  return (
+    <div className="parallax-band" ref={bandRef}>
+      <FloatingHearts />
+      <div className="parallax-band-inner">
+        <TiltCard className="parallax-paper">
+          <div className="parallax-paper-line" />
+          <div className="parallax-paper-line short" />
+          <motion.div
+            className="parallax-napkin"
+            style={prefersReducedMotion ? undefined : { y: yNear, rotate }}
+          >
+            <span className="parallax-napkin-star">✳</span>
+            <strong>napkin<br />no. 042</strong>
+            <motion.span
+              animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.4, 1, 0.4] }}
+              className="parallax-napkin-doodle"
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >↗</motion.span>
+          </motion.div>
+        </TiltCard>
+        <div className="parallax-band-copy">
+          <span className="eyebrow"><span className="eyebrow-star">✳</span> SKETCH IT NOW</span>
+          <h2>Every {theme === "light" ? "notebook" : "notebook"} has<br /><span>a big idea in it.</span></h2>
+          <p>Draw yours in seconds with the built-in pad - or just type the thing you keep describing to your friends.</p>
+          <motion.button
+            className="button button-lime"
+            onClick={onCta}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <WandSparkles size={15} /> Make it real <ArrowRight size={14} />
+          </motion.button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScrollVelocityText() {
+  const words = ["✳", "DRAW IT", "✳", "SHIP IT", "✳", "MAKE IT REAL", "✳", "FROM NAPKIN", "✳", "TO REAL HTML"];
+  const prefersReducedMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll();
+  const x = useTransform(scrollYProgress, [0, 1], [120, -420]);
+
+  return (
+    <div aria-hidden="true" className="velocity-band">
+      <motion.div className="velocity-track" style={prefersReducedMotion ? { x: 0 } : { x }}>
+        {[0, 1].map((copy) => (
+          <div className="velocity-run" key={copy}>
+            {words.map((word, index) => (
+              <span className={word === "✳" ? "velocity-star" : "velocity-word"} key={`${copy}-${index}`}>{word}</span>
+            ))}
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+function MomentumMarquee({ reverse }: { reverse?: boolean }) {
+  return (
+    <div aria-hidden="true" className="marquee-band momentum">
+      <div className="marquee-track" style={reverse ? { animationDirection: "reverse" } : undefined}>
+        {[0, 1].map((copy) => (
+          <div className="marquee-run" key={copy}>
+            {[
+              "SKETCH IT ☼", "✳", "DRAW IT ⌘", "✳", "SHIP IT ↗", "✳", "MAKE IT REAL ◆", "✳",
+              "NO MOCKUPS. REAL HTML.", "✳", "IDEAS DON’T WAIT ○", "✳",
+            ].map((word, index) => (
+              <span className={word === "✳" ? "marquee-star" : "marquee-word"} key={`${copy}-${index}`}>{word}</span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MagneticWords() {
+  const { scrollYProgress } = useScroll();
+  const prefersReducedMotion = useReducedMotion();
+  const x = useTransform(scrollYProgress, [0, 1], [0, -260]);
+
+  return (
+    <div aria-hidden="true" className="magnetic-band">
+      <motion.div className="magnetic-track" style={prefersReducedMotion ? { x: 0 } : { x }}>
+        {["MAKE IT REAL", "FROM NAPKIN", "TO REAL HTML", "DRAW IT", "SHIP IT"].map((word, index) => (
+          <motion.span
+            animate={prefersReducedMotion ? { opacity: 0.8 } : { opacity: [0.25, 0.95, 0.25] }}
+            className="magnetic-word"
+            key={word}
+            transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut", delay: index * 0.7 }}
+          >
+            {word} <i>✳</i>
+          </motion.span>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+function ScrollPinSections() {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: wrapRef, offset: ["start start", "end end"] });
+  const farY = useTransform(scrollYProgress, [0, 1], [75, -75]);
+  const nearY = useTransform(scrollYProgress, [0, 1], [-105, 105]);
+  const orbitRotation = useTransform(scrollYProgress, [0, 1], [-18, 18]);
+  const orbitDrift = useTransform(scrollYProgress, [0, 1], [80, -80]);
+
+  const panels = [
+    { eyebrow: "PANEL 01", title: "Sketch first.", copy: "Drop a photo of your napkin doodle, or draw it right on the pad. If you can see the idea, Napkin can work with it.", icon: <PenLine size={20} /> },
+    { eyebrow: "PANEL 02", title: "Pick your canvas.", copy: "Phone, tablet, desktop, or exact custom dimensions. Your draft fits the surface it's meant for.", icon: <Monitor size={20} /> },
+    { eyebrow: "PANEL 03", title: "Ship the real thing.", copy: "Real HTML comes back in seconds. Edit it live, export it, or share a public link. It's yours.", icon: <Rocket size={20} /> },
+  ];
+
+  return (
+    <div className={`pin-sections${prefersReducedMotion ? " is-reduced-motion" : ""}`} ref={wrapRef}>
+      <div className="pin-sticky">
+        <div aria-hidden="true" className="pin-depth-scene">
+          <motion.div
+            className="pin-depth-orbit pin-depth-orbit-back"
+            style={prefersReducedMotion ? undefined : { y: farY, rotate: orbitRotation }}
+          >
+            <span className="pin-orbit-ring" />
+            <span className="pin-orbit-ring inner" />
+            <span className="pin-orbit-node" />
+          </motion.div>
+          <motion.div
+            className="pin-depth-orbit pin-depth-orbit-front"
+            style={prefersReducedMotion ? undefined : { y: nearY, x: orbitDrift, rotate: orbitRotation }}
+          >
+            <span className="pin-orbit-ring" />
+            <span className="pin-orbit-node" />
+          </motion.div>
+          <motion.span
+            className="pin-depth-glow pin-depth-glow-left"
+            style={prefersReducedMotion ? undefined : { y: nearY }}
+          />
+          <motion.span
+            className="pin-depth-glow pin-depth-glow-right"
+            style={prefersReducedMotion ? undefined : { y: farY }}
+          />
+        </div>
+        {panels.map((panel, index) => {
+          const start = index / panels.length;
+          const end = (index + 1) / panels.length;
+          return <PinnedPanel
+            copy={panel.copy}
+            end={end}
+            icon={panel.icon}
+            key={panel.eyebrow}
+            progress={scrollYProgress}
+            reduced={!!prefersReducedMotion}
+            start={start}
+            title={panel.title}
+            total={panels.length}
+            eyebrow={panel.eyebrow}
+          />;
+        })}
+        <div className="pin-progress"><motion.i style={{ scaleX: scrollYProgress }} /></div>
+      </div>
+    </div>
+  );
+}
+
+function PinnedPanel({ copy, end, eyebrow, icon, progress, reduced, start, title, total }: {
+  copy: string; end: number; eyebrow: string; icon: React.ReactNode; progress: MotionValue<number>;
+  reduced: boolean; start: number; title: string; total: number;
+}) {
+  const slot = 1 / total;
+  const opacity = useTransform(progress, [start, start + slot * 0.3, end - slot * 0.3, end], [0, 1, 1, 0]);
+  const scale = useTransform(progress, [start, start + slot * 0.3, end - slot * 0.3, end], [0.9, 1, 1, 0.94]);
+  const y = useTransform(progress, [start, start + slot * 0.3, end - slot * 0.3, end], [40, 0, 0, -30]);
+
+  return (
+    <motion.div
+      className="pin-panel"
+      style={reduced ? { opacity: 1 } : { opacity, scale, y }}
+    >
+      <span className="pin-panel-eyebrow"><span className="eyebrow-star">✳</span> {eyebrow}</span>
+      <span className="pin-panel-icon">{icon}</span>
+      <h3>{title}</h3>
+      <p>{copy}</p>
+    </motion.div>
+  );
+}
+
+const REVIEWS = [
+  { quote: "Our juniors mock up flows on lunch napkins now. Napkin turns them into clickable drafts before the coffee is cold.", name: "Sarah Chen", role: "Design Lead, Vercel", initials: "SC", tone: "lime" },
+  { quote: "I sketched a checkout flow on my phone during a flight. Landed with real, editable HTML waiting in my workspace.", name: "Marco Okafor", role: "Founder, Stripe (ex)", initials: "MO", tone: "purple" },
+  { quote: "The fastest idea-to-artifact loop I've used. It respects that a rough sketch is still a real decision.", name: "Dr. Lena Vogel", role: "Professor of HCI, ETH Zürich", initials: "LV", tone: "lime" },
+  { quote: "We shipped our internal tools dashboard from a whiteboard photo. Saved our sprint literally.", name: "Priya Raman", role: "Eng Manager, Shopify", initials: "PR", tone: "purple" },
+  { quote: "No mockups, no figma purgatory. Just HTML you can hand to a dev. This is the right abstraction.", name: "Tom Delaney", role: "CTO, Linear (ex)", initials: "TD", tone: "lime" },
+  { quote: "My students use it to pitch products week one. The gap between idea and demo basically vanished.", name: "Aiko Tanaka", role: "Startup Advisor, Y Combinator", initials: "AT", tone: "purple" },
+];
+
+const COMPANY_LOGOS = ["Vercel", "Stripe", "Shopify", "Linear", "Figma", "Notion", "GitHub", "Framer"];
+
+function ReviewsSection() {
+  const row = [...REVIEWS, ...REVIEWS];
+  return (
+    <section className="reviews-section section-wrap" id="reviews">
+      <ScrollReveal className="reviews-heading">
+        <span className="eyebrow"><span className="eyebrow-star">✳</span> WORD ON THE STREET</span>
+        <h2>Sketched by many,<br /><span>trusted by more.</span></h2>
+        <p>Designers, founders and engineers keep their ideas moving on Napkin. Here&apos;s what they say.</p>
+      </ScrollReveal>
+      <div className="logo-band" aria-label="Companies whose teams use Napkin">
+        <div className="logo-track">
+          {[0, 1].map((copy) => (
+            <div className="logo-run" key={copy}>
+              {COMPANY_LOGOS.map((logo) => <span key={`${copy}-${logo}`}>{logo}</span>)}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="reviews-columns">
+        {[0, 1].map((col) => (
+          <div className="reviews-col" key={col} style={col === 1 ? { animationDirection: "reverse" } : undefined}>
+            {row.filter((_, i) => i % 2 === col).map((review, i) => (
+              <motion.figure
+                animate={{ y: [0, col === 0 ? -7 : 7, 0] }}
+                className={`review-card tone-${review.tone}`}
+                key={`${review.name}-${i}`}
+                transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <div className="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+                <blockquote>“{review.quote}”</blockquote>
+                <figcaption>
+                  <span className={`review-avatar tone-${review.tone}`}>{review.initials}</span>
+                  <span><strong>{review.name}</strong><small>{review.role}</small></span>
+                </figcaption>
+              </motion.figure>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -574,7 +986,7 @@ export function NapkinApp() {
         const shareUrl = `${window.location.origin}/share/${result.project.id}`;
         try {
           await navigator.clipboard.writeText(shareUrl);
-          setMessage("Share link copied — your design is ready to send.");
+          setMessage("Share link copied - your design is ready to send.");
         } catch {
           setMessage(`Your share link: ${shareUrl}`);
         }
@@ -713,7 +1125,7 @@ export function NapkinApp() {
     const win = window.open("", "_blank");
     if (win) {
       const document = win.document;
-      document.title = "Napkin — Full Preview";
+      document.title = "Napkin - Full Preview";
       document.documentElement.style.minHeight = "100%";
       document.body.style.minHeight = "100vh";
       document.body.style.margin = "0";
@@ -805,7 +1217,7 @@ export function NapkinApp() {
         <motion.div
           aria-hidden="true"
           className="hero-glow"
-          style={{ y: glowY, rotate: glowRotate }}
+          style={prefersReducedMotion ? undefined : { y: glowY, rotate: glowRotate }}
         />
         <div className="hero-grid" />
         <div className="hero-copy">
@@ -834,7 +1246,7 @@ export function NapkinApp() {
             transition={{ delay: 0.25, duration: 0.55 }}
           >
             Sketch the thing you can’t stop thinking about. We’ll turn it into a UI you can
-            actually build — code, canvas and all.
+            actually build - code, canvas and all.
           </motion.p>
           <motion.div
             animate={{ opacity: 1, y: 0 }}
@@ -943,7 +1355,19 @@ export function NapkinApp() {
           <span>✳</span> Not a pixel-perfect promise. A way to get from “I have an idea” to “I can work with this.”
           <span className="belief-accent">That’s the magic.</span>
         </ScrollReveal>
+        <ScrollReveal className="gallery-section" delay={0.14}>
+          <div className="gallery-heading">
+            <h3>Made from <span>actual napkins.</span></h3>
+            <span className="gallery-hint">DRAG / SCROLL SIDWAYS <ArrowRight size={12} /></span>
+          </div>
+          <HorizontalScrollRail />
+        </ScrollReveal>
       </section>
+
+      <ParallaxBand onCta={scrollToWorkspace} />
+      <ScrollPinSections />
+      <ScrollVelocityText />
+      <MagneticWords />
 
       <section className="workspace-section" id="workspace" ref={workspaceRef}>
         <ScrollReveal className="workspace-intro section-wrap">
@@ -1406,21 +1830,21 @@ export function NapkinApp() {
         </div>
       </div>
 
+      <MomentumMarquee />
       <section className="stats-section section-wrap">
         <ScrollReveal className="stats-grid">
           {[
-            { value: "<8s", label: "from sketch to first draft" },
-            { value: "100%", label: "real HTML you own" },
-            { value: "3", label: "canvas sizes + custom" },
-            { value: "0", label: "design tools required" },
+            { label: "from sketch to first draft", suffix: "s", value: 8 },
+            { label: "real HTML you own", suffix: "%", value: 100 },
+            { label: "canvas sizes + custom", suffix: "+", value: 3 },
+            { label: "design tools required", suffix: "", value: 0 },
           ].map((stat) => (
-            <div className="stat-cell" key={stat.label}>
-              <strong>{stat.value}</strong>
-              <span>{stat.label}</span>
-            </div>
+            <AnimatedCounter key={stat.label} {...stat} />
           ))}
         </ScrollReveal>
       </section>
+
+      <ReviewsSection />
 
       <section className="faq-section section-wrap" id="faq">
         <ScrollReveal className="faq-heading">
@@ -1429,10 +1853,10 @@ export function NapkinApp() {
         </ScrollReveal>
         <div className="faq-list">
           {[
-            { q: "Do I need to know how to code?", a: "Not at all. Sketch it on paper, draw it on screen, or just describe it. Napkin hands you real HTML you can keep tweaking in the built-in editor — or hand straight to a developer." },
-            { q: "What happens to my sketches?", a: "Your sketch is sent securely to generate your draft and never stored by Napkin. If you save a project, only the generated code and canvas size are kept — attached to your account." },
-            { q: "Is the generated code any good?", a: "It’s a real, responsive HTML starting point — not a mockup or a screenshot. Most people tweak fonts, colors and copy right in the editor, then export and ship." },
-            { q: "Can I use it on my phone?", a: "Yes — the whole workspace works on mobile. Snap a photo of a napkin sketch, hit generate, and scroll the result right there. Drawing with your finger works too." },
+            { q: "Do I need to know how to code?", a: "Not at all. Sketch it on paper, draw it on screen, or just describe it. Napkin hands you real HTML you can keep tweaking in the built-in editor - or hand straight to a developer." },
+            { q: "What happens to my sketches?", a: "Your sketch is sent securely to generate your draft and never stored by Napkin. If you save a project, only the generated code and canvas size are kept - attached to your account." },
+            { q: "Is the generated code any good?", a: "It’s a real, responsive HTML starting point - not a mockup or a screenshot. Most people tweak fonts, colors and copy right in the editor, then export and ship." },
+            { q: "Can I use it on my phone?", a: "Yes - the whole workspace works on mobile. Snap a photo of a napkin sketch, hit generate, and scroll the result right there. Drawing with your finger works too." },
             { q: "Is it really free & open source?", a: "Yep. Napkin is MIT licensed and the source is on GitHub. Bring your own AI keys, self-host it, or fork it into your own thing." },
           ].map((item, index) => (
             <FaqItem answer={item.a} index={index} key={item.q} question={item.q} />

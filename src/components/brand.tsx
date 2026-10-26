@@ -2,7 +2,7 @@ import Link from "next/link";
 
 /**
  * Napkin logo mark: a lime square napkin with a folded bottom-left corner,
- * and a hand-drawn stroke on top resolving into two crisp UI lines —
+ * and a hand-drawn stroke on top resolving into two crisp UI lines -
  * "from napkin to real". Works at 16px favicon size and up.
  */
 export function NapkinMark({ size = 31 }: { size?: number }) {

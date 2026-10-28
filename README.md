@@ -1,5 +1,5 @@
 # 🖍️ Napkin 
-**Draw it on a napkin. Ship it to production.**
+**Draw it on a napkin. Ship it to production. Enjoy**
 
 [![Open Source](https://img.shields.io/badge/Open%20Source-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Hacktoberfest 2026](https://img.shields.io/badge/Hacktoberfest-Kumasi_2026-orange.svg)](https://hacktoberfest.com/)

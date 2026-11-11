@@ -93,6 +93,20 @@ const BRUSH_SIZES = [
   { label: "Thick", size: 8 },
 ];
 
+function rateLimitErrorMessage(response: Response, isUser: boolean): string {
+  const retryAfter = Number(response.headers.get("Retry-After"));
+  const minutes =
+    Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.max(1, Math.ceil(retryAfter / 60))
+      : null;
+  const wait = minutes
+    ? `try again in ${minutes} minute${minutes === 1 ? "" : "s"}`
+    : "try again later";
+  return isUser
+    ? `You’ve reached the hourly limit. Please ${wait}.`
+    : `You’ve reached the hourly limit. Log in for more, or ${wait}.`;
+}
+
 const INSPIRATION_CHIPS = [
   {
     label: "☕ Coffee Shop",
@@ -810,8 +824,8 @@ export function NapkinApp() {
       setError("That file type isn’t supported. Try a PNG, JPG or WebP.");
       return;
     }
-    if (nextFile.size > 8 * 1024 * 1024) {
-      setError("Your sketch needs to be smaller than 8 MB.");
+    if (nextFile.size > 4 * 1024 * 1024) {
+      setError("Your sketch needs to be smaller than 4 MB.");
       return;
     }
     setFile(nextFile);
@@ -887,7 +901,7 @@ export function NapkinApp() {
     const revision = ++drawingRevision.current;
     canvas.toBlob((blob) => {
       if (revision !== drawingRevision.current) return;
-      if (!blob || blob.size > 8 * 1024 * 1024) {
+      if (!blob || blob.size > 4 * 1024 * 1024) {
         setError("Could not prepare that sketch. Try drawing a smaller, simpler version.");
         return;
       }
@@ -957,6 +971,9 @@ export function NapkinApp() {
       formData.set("height", String(canvasSize.height));
       const response = await fetch("/api/generate", { method: "POST", body: formData });
       const result = (await response.json()) as { code?: string; error?: string };
+      if (response.status === 429) {
+        throw new Error(rateLimitErrorMessage(response, Boolean(user)));
+      }
       if (!response.ok || !result.code) {
         throw new Error(result.error || "We couldn’t generate that design.");
       }

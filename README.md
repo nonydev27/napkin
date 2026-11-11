@@ -56,6 +56,10 @@ GEMMA_MODEL=gemma3n:e2b
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Rate limiting for /api/generate (per hour; defaults shown)
+RATE_LIMIT_ANON_PER_HOUR=5
+RATE_LIMIT_USER_PER_HOUR=30
 ```
 
 ---
@@ -82,7 +86,25 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 1. Create a Supabase project on the Free-plan.
 2. In the **SQL Editor**, run [`supabase/migrations/20261024000000_projects.sql`](supabase/migrations/20261024000000_projects.sql). It creates the projects table and owner-scoped Row Level Security (RLS) policies.
-3. For GitHub login, enable GitHub in **Authentication → Providers** and configure the OAuth callback with Supabase.
+3. Run [`supabase/migrations/20261111000000_rate_limits.sql`](supabase/migrations/20261111000000_rate_limits.sql). It creates the `rate_limits` table and the `consume_rate_limit` function used to rate-limit generation.
+4. For GitHub login, enable GitHub in **Authentication → Providers** and configure the OAuth callback with Supabase.
+
+---
+
+## ⏱️ Rate limiting
+
+`POST /api/generate` is rate limited per hour so anonymous traffic cannot drain the Gemini API key:
+
+| Caller | Default | Env var |
+| --- | --- | --- |
+| Anonymous (per IP) | 5 / hour | `RATE_LIMIT_ANON_PER_HOUR` |
+| Signed-in (per user id) | 30 / hour | `RATE_LIMIT_USER_PER_HOUR` |
+
+When Supabase is configured, counts are stored in Postgres through the `consume_rate_limit` RPC, which increments atomically and works across serverless instances. The `rate_limits` table has RLS enabled with no policies, so clients cannot read or write it directly. Run the [rate limits migration](supabase/migrations/20261111000000_rate_limits.sql) to enable this.
+
+Without Supabase (local development), the limiter falls back to an in-memory `Map` and logs a warning. That fallback is per server instance and resets on redeploy, so it is **not** suitable for production.
+
+Responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers. Blocked requests return `429` with a `Retry-After` header and a JSON error body.
 
 ---
 
@@ -108,6 +130,7 @@ src/
     share-toggle.tsx            Public/private sharing with copyable links
     theme-provider.tsx          Persisted, accessible light/dark themes
   lib/
+    rate-limit.ts              Supabase-backed / in-memory rate limiter
     sandbox.ts                  CSP-injected preview document helper
     supabase/                   SSR browser/server clients and config
 proxy.ts                        Next.js 16 Supabase session refresh

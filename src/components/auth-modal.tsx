@@ -15,7 +15,7 @@ type AuthModalProps = {
 };
 
 export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
-  const [mode, setMode] = useState<"login" | "signup">("signup");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,12 +25,14 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
 
   useEffect(() => {
     if (!open) return;
+    const trigger = document.activeElement;
     const frame = window.requestAnimationFrame(() => emailInput.current?.focus());
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       window.cancelAnimationFrame(frame);
       document.body.style.overflow = previousOverflow;
+      if (trigger instanceof HTMLElement) trigger.focus({ preventScroll: true });
     };
   }, [open]);
 
@@ -145,9 +147,8 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
               <X size={18} />
             </button>
             <span className="auth-mark"><NapkinMark size={22} /></span>
-            <p className="eyebrow">YOUR IDEAS, KEPT</p>
             <h2 id="auth-title">
-              {mode === "signup" ? "Make it yours." : "Welcome back."}
+              {mode === "signup" ? "Create an account" : "Sign in to Napkin"}
             </h2>
             <p className="auth-copy" id="auth-description">
               Sign in to save projects, share a live link, and take your code with you.
@@ -163,8 +164,8 @@ export function AuthModal({ open, onClose, onAuthenticated }: AuthModalProps) {
                 .
               </p>
             )}
-            {error && <p className="auth-message auth-error">{error}</p>}
-            {notice && <p className="auth-message auth-notice">{notice}</p>}
+            {error && <p className="auth-message auth-error" role="alert">{error}</p>}
+            {notice && <p className="auth-message auth-notice" role="status">{notice}</p>}
 
             <button
               className="oauth-button"

@@ -118,15 +118,14 @@ async function ProjectHistory({
 
   return (
     <section className="projects-main">
-      <span className="eyebrow"><span className="eyebrow-star">✳</span> YOUR PRIVATE STUDIO</span>
-      <h1>Your ideas,<br />taking shape.</h1>
+      <h1>My projects</h1>
       <p className="projects-lede">
-        A little home for everything you’ve made{authData.user.email ? `, ${authData.user.email}` : ""}.
+        Reopen a saved draft, download its HTML, or manage its share link.
       </p>
       {projects.length ? (
         <>
           <div className="projects-list-heading">
-            <span>YOUR CANVAS, IN GOOD COMPANY</span>
+            <span>SAVED PROJECTS</span>
             <span>SHOWING {firstVisibleProject}–{lastVisibleProject} OF {totalProjects}</span>
           </div>
           <div className="project-grid">
@@ -195,9 +194,9 @@ async function ProjectHistory({
       ) : (
         <div className="project-empty">
           <Sparkles aria-hidden="true" size={24} />
-          <h2>Nothing on the napkin yet.</h2>
-          <p>Your first sketch can become your first saved project.</p>
-          <Link className="button button-lime" href="/">Start with a sketch <ArrowUpRight size={14} /></Link>
+          <h2>No saved projects yet</h2>
+          <p>Generate a draft and save it to see it here.</p>
+          <Link className="button button-lime" href="/#workspace">Open workspace <ArrowUpRight size={14} /></Link>
         </div>
       )}
     </section>

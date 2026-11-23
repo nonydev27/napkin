@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import {
+  consumeRateLimit,
+  getClientIp,
+  getRateLimitConfig,
+  rateLimitHeaders,
+  rateLimitKey,
+} from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_DIMENSION = 2400;
 
@@ -62,7 +72,55 @@ ${code}
   return code;
 }
 
+type RateLimitIdentity = {
+  key: string;
+  limit: number;
+  supabase: SupabaseClient | null;
+};
+
+async function resolveRateLimitIdentity(request: Request): Promise<RateLimitIdentity> {
+  const { anon, user } = getRateLimitConfig();
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    if (data.user) {
+      return { key: rateLimitKey("user", data.user.id), limit: user, supabase };
+    }
+    return { key: rateLimitKey("anon", getClientIp(request.headers)), limit: anon, supabase };
+  }
+
+  return { key: rateLimitKey("anon", getClientIp(request.headers)), limit: anon, supabase: null };
+}
+
+function rateLimitMessage(retryAfterSeconds: number, isUser: boolean): string {
+  const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+  const wait = `try again in ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  return isUser
+    ? `You’ve reached the hourly limit. Please ${wait}.`
+    : `You’ve reached the hourly limit. Log in for more, or ${wait}.`;
+}
+
 export async function POST(request: Request) {
+  const identity = await resolveRateLimitIdentity(request);
+  const result = await consumeRateLimit(identity);
+  const headers = rateLimitHeaders(result);
+
+  if (!result.allowed) {
+    return NextResponse.json(
+      { error: rateLimitMessage(result.retryAfterSeconds, identity.key.startsWith("user:")) },
+      { status: 429, headers: { ...headers, "Retry-After": String(result.retryAfterSeconds) } },
+    );
+  }
+
+  const response = await generate(request);
+  for (const [name, value] of Object.entries(headers)) {
+    response.headers.set(name, value);
+  }
+  return response;
+}
+
+async function generate(request: Request) {
   const formData = await request.formData();
   const imageValue = formData.get("image");
   const prompt = formData.get("prompt");
@@ -77,13 +135,17 @@ export async function POST(request: Request) {
   }
 
   const image = imageValue instanceof File ? imageValue : null;
-  if (
-    image &&
-    (!ALLOWED_IMAGE_TYPES.has(image.type) || image.size === 0 || image.size > MAX_IMAGE_BYTES)
-  ) {
+  if (image && (!ALLOWED_IMAGE_TYPES.has(image.type) || image.size === 0)) {
     return NextResponse.json(
-      { error: "Use a PNG, JPEG, or WebP image smaller than 8 MB." },
+      { error: "Use a PNG, JPEG, or WebP image." },
       { status: 400 },
+    );
+  }
+
+  if (image && image.size > MAX_IMAGE_BYTES) {
+    return NextResponse.json(
+      { error: "That sketch is too large. Use an image smaller than 4 MB." },
+      { status: 413 },
     );
   }
 
